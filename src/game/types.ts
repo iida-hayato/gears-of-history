@@ -99,8 +99,7 @@ export interface GState {
   round: number;                // 1..10
   maxBuildSlots: number;        // 20
   // 一時計算用のバッファ
-  _skipsThisPolicyPhase: number;
-  _policyTurnsLeft: number;
+  roundOrder: PlayerID[];
   cardById: Record<string, AnyCard>;
   _inventRemaining: Record<PlayerID, number>;  // 発明フェイズの残回数
   _buildRemaining: Record<PlayerID, number>; // 建築フェイズの残回数

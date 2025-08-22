@@ -44,8 +44,7 @@ export const GearsOfHistory: Game<GState> = {
       },
       round: 1,
       maxBuildSlots: 20,
-      _skipsThisPolicyPhase: 0,
-      _policyTurnsLeft: ctx.numPlayers,
+      roundOrder: [...order],
       cardById,
       _inventRemaining: Object.fromEntries(order.map(id => [id, 0])),
       _buildRemaining: Object.fromEntries(order.map(id => [id, 0])),
@@ -53,14 +52,24 @@ export const GearsOfHistory: Game<GState> = {
     };
   },
 
-  turn: {
-    // フェーズ間で一巡のみさせるのに便利
-    order: TurnOrder.ONCE,
-  },
 
   phases: {
     policy: {
       start: true,
+      // ★ roundOrder に従って1巡だけ回す
+      turn: {
+        order: {
+          first: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            return idxs[0] ?? 0;
+          },
+          next: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            const i = idxs.indexOf(ctx.playOrderPos);
+            return (i >= 0 && i + 1 < idxs.length) ? idxs[i + 1] : undefined; // 1巡で終了
+          },
+        },
+      },
       moves: {
         investAndMove: ({G, ctx, playerID, events}, steps: number) => {
           const p = G.players[playerID!];
@@ -69,28 +78,37 @@ export const GearsOfHistory: Game<GState> = {
           if (s > max) return; // INVALID_MOVEにしてもOK
           policyMoveAndCountSkips(G, playerID!, s);
           p.policySpent = (p.policySpent ?? 0) + s;
-          G._policyTurnsLeft = Math.max(0, G._policyTurnsLeft - 1);
           events.endTurn();
         },
         endPolicyTurn: ({G, events}) => {
-          G._policyTurnsLeft = Math.max(0, G._policyTurnsLeft - 1);
           events.endTurn();
         },
       },
       onBegin: ({G, ctx}) => {
-        G._skipsThisPolicyPhase = 0;
-        G._policyTurnsLeft = ctx.numPlayers;
         for (const p of Object.values(G.players)) p.policySpent = 0; // ラウンド頭でリセット
       },
-      endIf: ({G}) => G._policyTurnsLeft <= 0,
       onEnd: ({G}) => {
         for (const p of Object.values(G.players)) recomputeRoundBonuses(G, p);
+        G.roundOrder = computeRoundTurnOrderByRing(G);
       },
       next: 'invention',
     },
 
     invention: {
-      turn: { order: TurnOrder.ONCE }, // 1巡固定
+      // ★ roundOrder に従って1巡だけ回す
+      turn: {
+        order: {
+          first: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            return idxs[0] ?? 0;
+          },
+          next: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            const i = idxs.indexOf(ctx.playOrderPos);
+            return (i >= 0 && i + 1 < idxs.length) ? idxs[i + 1] : undefined; // 1巡で終了
+          },
+        },
+      },
       moves: {
         // タイプを指定して公開（1回=1枚）
         inventType: ({ G, playerID, events }, t: BuildType) => {
@@ -115,8 +133,19 @@ export const GearsOfHistory: Game<GState> = {
     },
 
     build: {
+      // ★ roundOrder に従って1巡だけ回す
       turn: {
-        order: TurnOrder.ONCE,
+        order: {
+          first: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            return idxs[0] ?? 0;
+          },
+          next: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            const i = idxs.indexOf(ctx.playOrderPos);
+            return (i >= 0 && i + 1 < idxs.length) ? idxs[i + 1] : undefined; // 1巡で終了
+          },
+        },
       },
       onBegin: ({ G }) => {
         for (const [pid, p] of Object.entries(G.players)) {
@@ -173,6 +202,20 @@ export const GearsOfHistory: Game<GState> = {
     },
     
     cleanup: {
+      // ★ roundOrder に従って1巡だけ回す
+      turn: {
+        order: {
+          first: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            return idxs[0] ?? 0;
+          },
+          next: ({ G, ctx }) => {
+            const idxs = G.roundOrder.map(pid => ctx.playOrder.indexOf(pid));
+            const i = idxs.indexOf(ctx.playOrderPos);
+            return (i >= 0 && i + 1 < idxs.length) ? idxs[i + 1] : undefined; // 1巡で終了
+          },
+        },
+      },
       moves: {
         toggleFace: ({ G, playerID }, cardID: string) => {
           const p = G.players[playerID!];
@@ -183,16 +226,13 @@ export const GearsOfHistory: Game<GState> = {
           i = p.builtFaceDown.indexOf(cardID);
           if (i >= 0) { p.builtFaceDown.splice(i,1); p.built.push(cardID); return; }
         },
-        finalizeCleanup: ({ G, events }) => {
-          // pending → built（上限に達したら残りはpendingのまま）
-          for (const p of Object.values(G.players)) {
-            while (p.pendingBuilt.length > 0 && p.built.length < G.maxBuildSlots) {
-              const cid = p.pendingBuilt.shift()!;
-              p.built.push(cid);
-            }
-            // 効果・要求の再計算と「自由コマ2の保証」をサーバで強制
-            recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
+        finalizeCleanup: ({ G, playerID, events }) => {
+          const p = G.players[playerID!];           // ← 現在手番のみ
+          while (p.pendingBuilt.length > 0 && p.built.length < G.maxBuildSlots) {
+            const cid = p.pendingBuilt.shift()!;
+            p.built.push(cid);
           }
+          recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
           events.endTurn();
         },
       },
@@ -225,6 +265,18 @@ export const GearsOfHistory: Game<GState> = {
           G._inventRemaining[pid] = 0;
           if (G._buildRemaining) G._buildRemaining[pid] = 0;
           if ((G as any)._buildBudget) (G as any)._buildBudget[pid] = 0;
+        }
+        for (const p of Object.values(G.players)) {
+          recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
+        }
+      },
+      onBegin: ({ G }) => {
+        for (const [pid, p] of Object.entries(G.players)) {
+          while (p.pendingBuilt.length > 0 && p.built.length < G.maxBuildSlots) {
+            const cid = p.pendingBuilt.shift()!;
+            p.built.push(cid);
+          }
+          recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
         }
       },
       next: ({ G }) => (G.round > 10 ? undefined : 'policy'),

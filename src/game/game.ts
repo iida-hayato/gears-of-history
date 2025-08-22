@@ -1,6 +1,6 @@
 import type { Game } from 'boardgame.io';
 import { TurnOrder } from 'boardgame.io/core';
-import type { GState, PlayerID } from './types';
+import type { GState, PlayerID,AnyCard } from './types';
 import { initPlayers, recomputeRoundBonuses, policyMoveAndCountSkips, recomputeLaborAndEnforceFreeLeaders, computeRoundTurnOrderByRing } from './logic';
 import { samplePolicies, sampleTechDeck, sampleWondersByEra } from './cards';
 
@@ -14,20 +14,29 @@ export const GearsOfHistory: Game<GState> = {
     const policyDeck = samplePolicies(ctx.numPlayers);
     // 全員をリング上へ（インデックスを均等配置 or 0から順に配置）
     order.forEach((id, i) => { players[id].policyPos = i % policyDeck.length; });
-
+    // 全カード辞書を構築
+    const techDeck = sampleTechDeck();
+    const wondersByEra = sampleWondersByEra();
+    const cardById: Record<string, AnyCard> = {};
+    for (const c of policyDeck) cardById[c.id] = c;
+    for (const c of techDeck) cardById[c.id] = c;
+    for (const era of [1, 2, 3] as const) for (const c of wondersByEra[era]) cardById[c.id] = c;
+      
     return {
       players,
       order,
       ring: { policyDeck, startMarkerIndex: 0 },
       market: {
-        techDeck: sampleTechDeck(),
-        wondersByEra: sampleWondersByEra(),
+        techDeck,
+        wondersByEra,
         techMarket: [],
         wonderMarket: [],
       },
       round: 1,
       maxBuildSlots: 20,
       _skipsThisPolicyPhase: 0,
+      _policyTurnsLeft: 0,
+      cardById,
     };
   },
 
@@ -44,19 +53,18 @@ export const GearsOfHistory: Game<GState> = {
           // steps >= 1 を推奨（投入コマ数）。ここでは検証簡略化のため制約緩く
           policyMoveAndCountSkips(G, playerID!, Math.max(1, Math.floor(steps)));
         },
-        endPolicyTurn: ({ events }) => { events.endTurn(); },
+        endPolicyTurn: ({G, events}) => {
+          G._policyTurnsLeft = Math.max(0, G._policyTurnsLeft - 1);
+          events.endTurn();
+        },
       },
-      onBegin: ({ G }) => { G._skipsThisPolicyPhase = 0; },
-      endIf: ({ ctx }) => ctx.turn >= ctx.numPlayers, // 全員1回
-      onEnd: ({ G }) => {
-        // スキップ総数だけスタートコマを反時計回りに戻す
-        const n = G.ring.policyDeck.length;
-        G.ring.startMarkerIndex = (G.ring.startMarkerIndex - (G._skipsThisPolicyPhase % n) + n) % n;
-
-        // 当ラウンドの一時効果を反映
-        for (const p of Object.values(G.players)) {
-          recomputeRoundBonuses(G, p);
-        }
+      onBegin: ({G, ctx}) => {
+        G._skipsThisPolicyPhase = 0;
+        G._policyTurnsLeft = ctx.numPlayers;
+      },
+      endIf: ({G}) => G._policyTurnsLeft <= 0,
+      onEnd: ({G}) => {
+        for (const p of Object.values(G.players)) recomputeRoundBonuses(G, p);
       },
       next: 'invention',
     },
@@ -119,6 +127,8 @@ export const GearsOfHistory: Game<GState> = {
       moves: {
         toggleFace: ({ G, playerID }, cardID: string) => {
           const p = G.players[playerID!];
+          const kind = G.cardById[cardID]?.kind;
+          if (kind === 'Wonder') return; // 7不思議は裏面不可
           let i = p.built.indexOf(cardID);
           if (i >= 0) { p.built.splice(i,1); p.builtFaceDown.push(cardID); return; }
           i = p.builtFaceDown.indexOf(cardID);
@@ -163,8 +173,9 @@ export const GearsOfHistory: Game<GState> = {
 function computeWinner(G: GState): { winnerIDs: PlayerID[]; scores: Record<PlayerID, number> } {
   const scores: Record<PlayerID, number> = {};
   for (const [id, p] of Object.entries(G.players)) {
-    // 簡易: 表カードのみVPを数える（※仕様要確認）
-    const vp = p.built.reduce((acc, cid) => acc + vpOf(G, cid), 0);
+    // 裏面も印刷VPは有効
+    const all = [...p.built, ...p.builtFaceDown];
+    const vp = all.reduce((acc, cid) => acc + vpOf(G, cid), 0);
     scores[id] = vp;
   }
   const max = Math.max(...Object.values(scores));
@@ -173,7 +184,5 @@ function computeWinner(G: GState): { winnerIDs: PlayerID[]; scores: Record<Playe
 }
 
 function vpOf(G: GState, cardID: string): number {
-  const all = [...G.market.techDeck, ...G.market.techMarket, ...G.market.wonderMarket, ...G.ring.policyDeck];
-  const c = all.find(c => c.id === cardID);
-  return c?.vp ?? 0;
+  return G.cardById[cardID]?.vp ?? 0;
 }

@@ -96,6 +96,8 @@ export interface GState {
   maxBuildSlots: number;        // 20
   // 一時計算用のバッファ
   _skipsThisPolicyPhase: number;
+  _policyTurnsLeft: number;
+  cardById: Record<string, AnyCard>;
 }
 
 export type MoveCtx = {

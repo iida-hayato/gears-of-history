@@ -1,6 +1,6 @@
 import type { Game } from 'boardgame.io';
-import { TurnOrder } from 'boardgame.io/core';
-import {GState, PlayerID, AnyCard, freeLeadersAvailable} from './types';
+import {INVALID_MOVE, TurnOrder} from 'boardgame.io/core';
+import {GState, PlayerID, AnyCard, freeLeadersAvailable, BuildType, TechCard, inventActionsThisRound} from './types';
 import { initPlayers, recomputeRoundBonuses, policyMoveAndCountSkips, recomputeLaborAndEnforceFreeLeaders, computeRoundTurnOrderByRing } from './logic';
 import {baseTechDeck, samplePolicies, sampleWondersByEra} from './cards';
 
@@ -38,6 +38,7 @@ export const GearsOfHistory: Game<GState> = {
       _skipsThisPolicyPhase: 0,
       _policyTurnsLeft: ctx.numPlayers,
       cardById,
+      _inventRemaining: Object.fromEntries(order.map(id => [id, 0])),
     };
   },
 
@@ -78,30 +79,26 @@ export const GearsOfHistory: Game<GState> = {
     },
 
     invention: {
+      turn: { order: TurnOrder.ONCE }, // 1巡固定
       moves: {
-        inventToMarket: ({ G, playerID }, count: number) => {
-          const p = G.players[playerID!];
-          const allow = Math.max(0, count);
-          for (let i = 0; i < allow && G.market.techDeck.length > 0; i++) {
-            const card = G.market.techDeck.shift()!;
-            G.market.techMarket.push(card);
-            // コスト昇順
-            G.market.techMarket.sort((a,b) => a.cost - b.cost);
-          }
+        // タイプを指定して公開（1回=1枚）
+        inventType: ({ G, playerID, events }, t: BuildType) => {
+          const pid = playerID!;
+          const remain = G._inventRemaining[pid] ?? 0;
+          if (remain <= 0) return INVALID_MOVE;
+          const card = drawNextTechOfType(G, t);
+          if (!card) return INVALID_MOVE;
+          G.market.techMarket.push(card);
+          // 同タイプ内の見た目順：UIがグルーピングするが、全体でも安定化
+          G.market.techMarket.sort(sortById);
+          G._inventRemaining[pid] = remain - 1;
+          if (remain - 1 <= 0) return events.endTurn();
         },
-        endInventionTurn: ({ events }) => { events.endTurn(); },
       },
-      turn: {
-        // スタートコマから時計回りに近い順
-        order: {
-          first: ({ G }) => computeRoundTurnOrderByRing(G)[0] as unknown as number,
-          next: ({ G, ctx }) => {
-            const ord = computeRoundTurnOrderByRing(G);
-            const idx = ord.indexOf(ctx.playOrder[ctx.playOrderPos]);
-            const nextID = ord[(idx + 1) % ord.length];
-            return Number(nextID);
-          },
-        },
+      onBegin: ({ G }) => {
+        for (const [pid, p] of Object.entries(G.players)) {
+          G._inventRemaining[pid] = inventActionsThisRound(p);
+        }
       },
       next: 'build',
     },
@@ -194,3 +191,16 @@ function computeWinner(G: GState): { winnerIDs: PlayerID[]; scores: Record<Playe
 function vpOf(G: GState, cardID: string): number {
   return G.cardById[cardID]?.vp ?? 0;
 }
+
+
+// ヘルパ：指定タイプの次カードをデッキから引く（なければ undefined）
+    function drawNextTechOfType(G: GState, t: BuildType | undefined): TechCard | undefined {
+        const idx = G.market.techDeck.findIndex(c => (c.buildType ?? 'Land') === (t ?? 'Land'));
+        if (idx < 0) return undefined;
+        const [c] = G.market.techDeck.splice(idx, 1);
+        return c as TechCard;
+      }
+// 比較：id
+function sortById(a: TechCard, b: TechCard): number {
+    return a.id.localeCompare(b.id);
+  }

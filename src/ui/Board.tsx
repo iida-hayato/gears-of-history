@@ -2,6 +2,8 @@ import React from 'react';
 import type {BoardProps} from 'boardgame.io/react';
 import {freeLeadersAvailable, GState} from '../game/types';
 import {availableCost, buildActionsThisRound, inventActionsThisRound} from '../game/types';
+import {Simulate} from "react-dom/test-utils";
+import play = Simulate.play;
 
 export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
     const myID = (playerID as string | undefined) ?? (ctx.currentPlayer as string | undefined) ?? '0';
@@ -81,8 +83,8 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                         );
                     })()}
                 </div>
-                <b>プレイヤー {ctx.currentPlayer}の手番</b>
-                {ctx.phase === 'policy' && (
+                <b>プレイヤー {ctx.currentPlayer}の手番 手元コマ数{freeLeadersAvailable(G.players[ctx.currentPlayer])}</b>
+                {ctx.phase === 'policy' && myID === ctx.currentPlayer && (
                     <div style={{marginTop: 8}}>
                         <b>政策フェーズ操作</b>
                         <div>
@@ -91,34 +93,73 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                           ))}
                           {freeLeadersAvailable(me) === 0 && <button onClick={()=> (moves as any).endPolicyTurn()}>投入不可</button>}
                         </div>
-                        <p>投入する指導者コマの数を選択 コマ数 {freeLeadersAvailable(me)}</p>
+                        <p>投入する指導者コマの数を選択</p>
                         <p>少なくとも1つのコマを投入する。少なくとも1つのコマを手元に残す。</p>
                     </div>
                 )}
             </section>
             <section>
                 <h3>市場</h3>
-                <div>
-                    <b>Tech Market:</b>
-                    <ul>
-                        {G.market.techMarket.map(c => (
-                            <li key={c.id}>
-                                [{c.cost}] {c.name}
-                                {ctx.phase === 'build' && myID === ctx.currentPlayer && (
-                                    <button onClick={() => (moves as any).buildFromMarket(c.id)}
-                                            style={{marginLeft: 8}}>建築</button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                    {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
-                        <div>
-                            <button onClick={() => (moves as any).inventToMarket(1)}>発明+1</button>
-                            <button onClick={() => (moves as any).inventToMarket(2)}>発明+2</button>
-                            <button onClick={() => (moves as any).endInventionTurn()}>確定</button>
+                {(() => {
+                    // 残回数とタイプ別在庫
+                    const remain = (G._inventRemaining as any)?.[myID] ?? 0;             // ※コメント3：残回数表示
+                    const byType: Record<string, { deck: number; cards: any[] }> = {};
+                    for (const c of G.market.techMarket) {
+                        const k = (c.buildType ?? 'Land') as string;
+                        (byType[k] ??= { deck: 0, cards: [] }).cards.push(c);
+                    }
+                    for (const c of G.market.techDeck) {
+                        const k = (c.buildType ?? 'Land') as string;
+                        (byType[k] ??= { deck: 0, cards: [] }).deck++;
+                    }
+                    const typeKeys = Object.keys(byType).sort();
+                    return (
+                        <div style={{ width: 640}}>
+                            <b>Tech Market:</b>
+                            {/* グループ表示（タイプごとに id で昇順） */}
+                            {typeKeys.map(k => {
+                                const cards = [...byType[k].cards].sort((a,b) =>
+                                    a.id.localeCompare(b.id)
+                                );
+                                return (
+                                    <div key={k} style={{ margin: '8px 0', padding: 8, border: '1px solid #ddd', borderRadius: 8 }}>
+                                        <div style={{ display:'flex', justifyContent:'space-between' }}>
+                                            <div><b>{k}</b></div>
+                                            <div style={{ fontSize:12, opacity:.7 }}>山札残: {byType[k].deck}</div>
+                                        </div>
+                                        <ul style={{ margin: '6px 0' }}>
+                                            {cards.map((c,index) => (
+                                                <li key={index}>
+                                                    [{c.cost}] {c.name}
+                                                    {ctx.phase === 'build' && myID === ctx.currentPlayer && (
+                                                        <button onClick={() => (moves as any).buildFromMarket(c.id)}
+                                                                style={{marginLeft: 8}}>建築</button>
+                                                    )}
+                                                </li>
+                                            ))}
+                                            {cards.length === 0 && <li style={{ opacity:.6 }}>（公開なし）</li>}
+                                        </ul>
+                                        {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
+                                            <div>
+                                                <button
+                                                    onClick={() => (moves as any).inventType(k)}
+                                                    disabled={remain<=0 || byType[k].deck<=0}
+                                                >
+                                                    公開（{k}）
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
+                                <div style={{ marginTop: 6 }}>
+                                    残り発明回数: {remain}
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    );
+                })()}
             </section>
 
             <section>

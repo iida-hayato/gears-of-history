@@ -102,6 +102,7 @@ export interface GState {
   _skipsThisPolicyPhase: number;
   _policyTurnsLeft: number;
   cardById: Record<string, AnyCard>;
+  _inventRemaining: Record<PlayerID, number>;  // 発明フェイズの残回数
 }
 
 export type MoveCtx = {

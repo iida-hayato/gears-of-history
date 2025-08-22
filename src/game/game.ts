@@ -1,6 +1,15 @@
 import type { Game } from 'boardgame.io';
 import {INVALID_MOVE, TurnOrder} from 'boardgame.io/core';
-import {GState, PlayerID, AnyCard, freeLeadersAvailable, BuildType, TechCard, inventActionsThisRound} from './types';
+import {
+  GState,
+  PlayerID,
+  AnyCard,
+  freeLeadersAvailable,
+  BuildType,
+  TechCard,
+  inventActionsThisRound,
+  buildActionsThisRound, availableCost
+} from './types';
 import { initPlayers, recomputeRoundBonuses, policyMoveAndCountSkips, recomputeLaborAndEnforceFreeLeaders, computeRoundTurnOrderByRing } from './logic';
 import {baseTechDeck, samplePolicies, sampleWondersByEra} from './cards';
 
@@ -39,6 +48,8 @@ export const GearsOfHistory: Game<GState> = {
       _policyTurnsLeft: ctx.numPlayers,
       cardById,
       _inventRemaining: Object.fromEntries(order.map(id => [id, 0])),
+      _buildRemaining: Object.fromEntries(order.map(id => [id, 0])),
+      _buildBudget:   Object.fromEntries(order.map(id => [id, 0])),
     };
   },
 
@@ -104,30 +115,63 @@ export const GearsOfHistory: Game<GState> = {
     },
 
     build: {
+      turn: {
+        order: TurnOrder.ONCE,
+      },
+      onBegin: ({ G }) => {
+        for (const [pid, p] of Object.entries(G.players)) {
+          G._buildRemaining[pid] = buildActionsThisRound(p);
+          G._buildBudget[pid]   = availableCost(p); // ← ラウンド開始時点の“利用可能コスト”を配布
+        }
+      },
       moves: {
         buildFromMarket: ({ G, playerID }, cardID: string) => {
-          const p = G.players[playerID!];
-          const cardIdx = G.market.techMarket.findIndex(c => c.id === cardID) ?? -1;
-          if (cardIdx < 0) return;
-          const card = G.market.techMarket[cardIdx];
-          const budget = Math.max(0, p.base.gear + p.roundDelta.gear, p.base.food + p.roundDelta.food);
-          const cost = card.cost;
-          if (Math.min(p.base.gear + p.roundDelta.gear, p.base.food + p.roundDelta.food) < cost) return; // 予算不足
-          // 建築権の管理はUI/シミュで行い、本体はpendingへ
+          const pid = playerID!;
+          if ((G._buildRemaining[pid] ?? 0) <= 0) return INVALID_MOVE;
+          const p = G.players[pid];
+          const idx = G.market.techMarket.findIndex(c => c.id === cardID);
+          if (idx < 0) return INVALID_MOVE;
+          const card = G.market.techMarket[idx];
+          if ((G._buildBudget[pid] ?? 0) < card.cost) return INVALID_MOVE; // 残コスト不足
           p.pendingBuilt.push(card.id);
-          G.market.techMarket.splice(cardIdx, 1);
+          G.market.techMarket.splice(idx, 1);
+          G._buildRemaining[pid]--;
+          G._buildBudget[pid] = Math.max(0, (G._buildBudget[pid] ?? 0) - card.cost); // ← 消費
+        },
+        buildWonderFromMarket: ({ G, playerID }, cardID: string) => {
+          const pid = playerID!;
+          if ((G._buildRemaining[pid] ?? 0) <= 0) return INVALID_MOVE;
+          const p = G.players[pid];
+          const idx = G.market.wonderMarket.findIndex(c => c.id === cardID);
+          if (idx < 0) return INVALID_MOVE;
+          const card = G.market.wonderMarket[idx];
+          if ((G._buildBudget[pid] ?? 0) < card.cost) return INVALID_MOVE;
+          if (hasWonderInEra(G, pid, (card as any).era)) return INVALID_MOVE;
+          p.pendingBuilt.push(card.id);
+          G.market.wonderMarket.splice(idx, 1);
+          G._buildRemaining[pid]--;
+          G._buildBudget[pid] = Math.max(0, (G._buildBudget[pid] ?? 0) - card.cost);
         },
         demolish: ({ G, playerID }, cardID: string) => {
-          const p = G.players[playerID!];
-          // 7不思議は撤去不可（ここでは Tech のみ対象）
-          const i = p.built.indexOf(cardID);
-          if (i >= 0) p.built.splice(i, 1);
+          const pid = playerID!;
+          if ((G._buildRemaining[pid] ?? 0) <= 0) return INVALID_MOVE;
+          const p = G.players[pid];
+          const kind = G.cardById[cardID]?.kind;
+          if (kind === 'Wonder') return INVALID_MOVE;
+          let i = p.built.indexOf(cardID);
+          if (i >= 0) { p.built.splice(i, 1); G._buildRemaining[pid]--; return; }
+          i = p.builtFaceDown.indexOf(cardID);
+          if (i >= 0) { p.builtFaceDown.splice(i, 1); G._buildRemaining[pid]--; return; }
+          return INVALID_MOVE;
         },
-        endBuildTurn: ({ events }) => { events.endTurn(); },
+        endBuildTurn: ({ G, playerID, events }) => {
+          G._buildRemaining[playerID!] = 0;
+          events.endTurn();
+        },
       },
       next: 'cleanup',
     },
-
+    
     cleanup: {
       moves: {
         toggleFace: ({ G, playerID }, cardID: string) => {
@@ -204,3 +248,13 @@ function vpOf(G: GState, cardID: string): number {
 function sortById(a: TechCard, b: TechCard): number {
     return a.id.localeCompare(b.id);
   }
+
+  // ヘルパ：指定時代の7不思議があるかどうか.各時代の七不思議は1つずつしか建てられない
+function hasWonderInEra(G: GState, pid: PlayerID, era: 1|2|3): boolean {
+  const p = G.players[pid];
+  const all = [...p.built, ...p.builtFaceDown, ...p.pendingBuilt];
+  return all.some(id => {
+    const c = G.cardById[id];
+    return c?.kind === 'Wonder' && (c as any).era === era;
+  });
+}

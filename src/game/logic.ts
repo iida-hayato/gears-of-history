@@ -18,6 +18,7 @@ export function initPlayers(order: PlayerID[]): Record<PlayerID, PlayerState> {
             roundBuildActionsBonus: 0,
             roundInventActionsBonus: 0,
             policyPos: -1,           // 準備で置く
+            policySpent: 0,          // 政策に投入したコマ数
         };
     }
     return players;

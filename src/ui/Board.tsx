@@ -102,7 +102,9 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 <h3>市場</h3>
                 {(() => {
                     // 残回数とタイプ別在庫
-                    const remain = (G._inventRemaining as any)?.[myID] ?? 0;             // ※コメント3：残回数表示
+                    const remainInvent = (G._inventRemaining as any)?.[myID] ?? 0;             // ※コメント3：残回数表示
+                    const remainBuild = (G._buildRemaining as any)?.[myID] ?? 0;
+                    const budget       = (G._buildBudget      as any)?.[myID] ?? 0;
                     const byType: Record<string, { deck: number; cards: any[] }> = {};
                     for (const c of G.market.techMarket) {
                         const k = (c.buildType ?? 'Land') as string;
@@ -115,7 +117,18 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                     const typeKeys = Object.keys(byType).sort();
                     return (
                         <div style={{ width: 640}}>
-                            <b>Tech Market:</b>
+                            {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
+                                <div style={{ marginTop: 6 }}>
+                                    残り発明回数: {remainInvent}
+                                </div>
+                            )}
+                            {ctx.phase === 'build' && myID === ctx.currentPlayer && (
+                                <div style={{ marginTop: 6 }}>
+                                    残り建築回数: {remainBuild}
+                                    <br/>
+                                    残り利用可能コスト: {budget}（最大: {availableCost(me)}）
+                                </div>
+                            )}
                             {/* グループ表示（タイプごとに id で昇順） */}
                             {typeKeys.map(k => {
                                 const cards = [...byType[k].cards].sort((a,b) =>
@@ -127,36 +140,51 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                             <div><b>{k}</b></div>
                                             <div style={{ fontSize:12, opacity:.7 }}>山札残: {byType[k].deck}</div>
                                         </div>
+                                        {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
+                                            <div>
+                                                <button
+                                                    onClick={() => (moves as any).inventType(k)}
+                                                    disabled={remainInvent<=0 || byType[k].deck<=0}
+                                                >
+                                                    公開（{k}）
+                                                </button>
+                                            </div>
+                                        )}
                                         <ul style={{ margin: '6px 0' }}>
                                             {cards.map((c,index) => (
                                                 <li key={index}>
                                                     [{c.cost}] {c.name}
                                                     {ctx.phase === 'build' && myID === ctx.currentPlayer && (
                                                         <button onClick={() => (moves as any).buildFromMarket(c.id)}
+                                                                disabled={remainBuild<=0 || budget < c.cost}
                                                                 style={{marginLeft: 8}}>建築</button>
                                                     )}
                                                 </li>
                                             ))}
                                             {cards.length === 0 && <li style={{ opacity:.6 }}>（公開なし）</li>}
                                         </ul>
-                                        {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
-                                            <div>
-                                                <button
-                                                    onClick={() => (moves as any).inventType(k)}
-                                                    disabled={remain<=0 || byType[k].deck<=0}
-                                                >
-                                                    公開（{k}）
-                                                </button>
-                                            </div>
-                                        )}
+                                        
                                     </div>
                                 );
                             })}
-                            {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
-                                <div style={{ marginTop: 6 }}>
-                                    残り発明回数: {remain}
-                                </div>
-                            )}
+                            <div style={{ marginTop: 12 }}>
+                                <b>Wonders:</b>
+                                <ul>
+                                    {G.market.wonderMarket.map(w => (
+                                        <li key={w.id}>
+                                            [era{(w as any).era}] [{w.cost}] {w.name}
+                                            {ctx.phase === 'build' && myID === ctx.currentPlayer && (
+                                                <button
+                                                    onClick={() => (moves as any).buildWonderFromMarket(w.id)}
+                                                    disabled={remainBuild<=0 || budget < w.cost}
+                                                    style={{ marginLeft: 8 }}
+                                                >建築</button>
+                                            )}
+                                        </li>
+                                    ))}
+                                    {G.market.wonderMarket.length === 0 && <li style={{ opacity:.6 }}>（公開なし）</li>}
+                                </ul>
+                            </div>
                         </div>
                     );
                 })()}
@@ -164,7 +192,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
 
             <section>
                 <h3>あなたの状態 (P{myID})</h3>
-                <div>利用可能コスト: {availableCost(me)}</div>
+                <div>最大利用可能コスト: {availableCost(me)}</div>
                 <div>建築権(目安): {buildActionsThisRound(me)}</div>
                 <div>発明権(目安): {inventActionsThisRound(me)}</div>
                 <div>表: {me.built.join(', ') || '-'}</div>

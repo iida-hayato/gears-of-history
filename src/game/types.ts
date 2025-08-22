@@ -103,6 +103,8 @@ export interface GState {
   _policyTurnsLeft: number;
   cardById: Record<string, AnyCard>;
   _inventRemaining: Record<PlayerID, number>;  // 発明フェイズの残回数
+  _buildRemaining: Record<PlayerID, number>; // 建築フェイズの残回数
+  _buildBudget: Record<PlayerID, number>; // ← このラウンドの残り“利用可能コスト”
 }
 
 export type MoveCtx = {

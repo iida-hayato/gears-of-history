@@ -1,6 +1,6 @@
 import type { Game } from 'boardgame.io';
 import { TurnOrder } from 'boardgame.io/core';
-import type { GState, PlayerID,AnyCard } from './types';
+import {GState, PlayerID, AnyCard, freeLeadersAvailable} from './types';
 import { initPlayers, recomputeRoundBonuses, policyMoveAndCountSkips, recomputeLaborAndEnforceFreeLeaders, computeRoundTurnOrderByRing } from './logic';
 import { samplePolicies, sampleTechDeck, sampleWondersByEra } from './cards';
 
@@ -21,7 +21,8 @@ export const GearsOfHistory: Game<GState> = {
     for (const c of policyDeck) cardById[c.id] = c;
     for (const c of techDeck) cardById[c.id] = c;
     for (const era of [1, 2, 3] as const) for (const c of wondersByEra[era]) cardById[c.id] = c;
-      
+    for (const p of Object.values(players)) p.policySpent = 0;
+
     return {
       players,
       order,
@@ -49,9 +50,15 @@ export const GearsOfHistory: Game<GState> = {
     policy: {
       start: true,
       moves: {
-        investAndMove: ({ G, ctx, playerID }, steps: number) => {
-          // steps >= 1 を推奨（投入コマ数）。ここでは検証簡略化のため制約緩く
-          policyMoveAndCountSkips(G, playerID!, Math.max(1, Math.floor(steps)));
+        investAndMove: ({G, ctx, playerID, events}, steps: number) => {
+          const p = G.players[playerID!];
+          const s = Math.max(1, Math.floor(steps));
+          const max = freeLeadersAvailable(p);
+          if (s > max) return; // INVALID_MOVEにしてもOK
+          policyMoveAndCountSkips(G, playerID!, s);
+          p.policySpent = (p.policySpent ?? 0) + s;
+          G._policyTurnsLeft = Math.max(0, G._policyTurnsLeft - 1);
+          events.endTurn();
         },
         endPolicyTurn: ({G, events}) => {
           G._policyTurnsLeft = Math.max(0, G._policyTurnsLeft - 1);
@@ -61,6 +68,7 @@ export const GearsOfHistory: Game<GState> = {
       onBegin: ({G, ctx}) => {
         G._skipsThisPolicyPhase = 0;
         G._policyTurnsLeft = ctx.numPlayers;
+        for (const p of Object.values(G.players)) p.policySpent = 0; // ラウンド頭でリセット
       },
       endIf: ({G}) => G._policyTurnsLeft <= 0,
       onEnd: ({G}) => {

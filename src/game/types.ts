@@ -65,7 +65,8 @@ export interface PlayerState {
   totalLeaders: number;       // 原則7（うち1はリング上）
   lockedLeaders: number;      // 拘束されて盤面固定
   ringLeaderPlaced: boolean;  // リング上コマ設置済み
-
+  policySpent: number; // 政策に投入して消費したコマ数
+  
   // フェーズごとの追加行動（ラウンド限定）
   roundBuildActionsBonus: number;
   roundInventActionsBonus: number;
@@ -120,11 +121,14 @@ export const availableCost = (p?: PlayerState): number => {
   return Math.max(0, Math.min(gear, food));
 };
 
-export const freeLeaders = (p: PlayerState): number =>
-  Math.max(0, p.totalLeaders - 1 /*リング*/ - p.lockedLeaders);
+export const freeLeadersRaw = (p: PlayerState): number =>
+      Math.max(0, p.totalLeaders - 1 /*リング*/ - p.lockedLeaders);
+
+export const freeLeadersAvailable = (p: PlayerState): number =>
+    Math.max(0, freeLeadersRaw(p) - (p.policySpent ?? 0));
 
 export const buildActionsThisRound = (p: PlayerState): number =>
-  freeLeaders(p) + p.roundBuildActionsBonus;
+    freeLeadersAvailable(p) + p.roundBuildActionsBonus;
 
 export const inventActionsThisRound = (p: PlayerState): number =>
-  freeLeaders(p) + p.roundInventActionsBonus;
+    freeLeadersAvailable(p) + p.roundInventActionsBonus;

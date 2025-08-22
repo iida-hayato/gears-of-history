@@ -1,6 +1,6 @@
 import React from 'react';
 import type {BoardProps} from 'boardgame.io/react';
-import type {GState} from '../game/types';
+import {freeLeadersAvailable, GState} from '../game/types';
 import {availableCost, buildActionsThisRound, inventActionsThisRound} from '../game/types';
 
 export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
@@ -8,6 +8,12 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
     const me = G.players[myID];
     const ord = G.order;
     if (!me) return <div style={{padding: 16}}>Loading... (player={String(myID)})</div>;
+    // プレイヤーごとの色（P0..）：色弱にもある程度配慮（青/緑/橙/赤/紫/青緑）
+    const PLAYER_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
+    const colorByPlayer = React.useMemo(
+        () => Object.fromEntries(G.order.map((pid, i) => [pid, PLAYER_COLORS[i % PLAYER_COLORS.length]])),
+        [G.order]
+    );
     return (
         <div style={{padding: 16, fontFamily: 'system-ui, sans-serif'}}>
             <section>
@@ -42,7 +48,29 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                                 )}
                                                 <div><b>{idx}</b> {card.name}</div>
                                                 <div style={{ fontSize: 12, opacity: .8 }}>{card.description}</div>
-                                                <div style={{ fontSize: 12 }}>占有: {occupants.length ? occupants.join(', ') : '-'}</div>
+                                                {/* 占有トークン（プレイヤー色の丸） */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    gap: 6,
+                                                    alignItems: 'center',
+                                                    marginTop: 6
+                                                }}>
+                                                    {occupants.length === 0
+                                                        ? <span style={{fontSize: 12, opacity: .5}}>空</span>
+                                                        : occupants.map(pid => (
+                                                            <>
+                                                            <span key={pid} title={`P${pid}`}
+                                                                  style={{
+                                                                      width: 12,
+                                                                      height: 12,
+                                                                      borderRadius: '50%',
+                                                                      background: colorByPlayer[pid],
+                                                                      border: '1px solid rgba(0,0,0,.25)'
+                                                                  }}
+                                                            /><p>{pid}</p>
+                                                            </>
+                                                        ))}
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -53,15 +81,18 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                         );
                     })()}
                 </div>
+                <b>プレイヤー {ctx.currentPlayer}の手番</b>
                 {ctx.phase === 'policy' && (
                     <div style={{marginTop: 8}}>
                         <b>政策フェーズ操作</b>
                         <div>
-                            <button onClick={() => (moves as any).investAndMove(1)}>+1</button>
-                            <button onClick={() => (moves as any).investAndMove(2)}>+2</button>
-                            <button onClick={() => (moves as any).investAndMove(3)}>+3</button>
-                            <button onClick={() => (moves as any).endPolicyTurn()}>確定</button>
+                          {Array.from({length: freeLeadersAvailable(me)-1}, (_,i) => i+1).map(s => (
+                            <button key={s} onClick={() => (moves as any).investAndMove(s)}>+{s}</button>
+                          ))}
+                          {freeLeadersAvailable(me) === 0 && <button onClick={()=> (moves as any).endPolicyTurn()}>投入不可</button>}
                         </div>
+                        <p>投入する指導者コマの数を選択 コマ数 {freeLeadersAvailable(me)}</p>
+                        <p>少なくとも1つのコマを投入する。少なくとも1つのコマを手元に残す。</p>
                     </div>
                 )}
             </section>

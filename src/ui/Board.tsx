@@ -101,7 +101,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
             </section>
 
             <hr/>
-            <div>phase: {ctx.phase} / turn: {ctx.turn} / current: P{ctx.currentPlayer}</div>
+            <div>phase: {ctx.phase} / turn: {ctx.turn} / current: P{ctx.currentPlayer}さん</div>
         </div>
     );
 }

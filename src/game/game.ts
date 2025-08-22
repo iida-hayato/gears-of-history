@@ -35,7 +35,7 @@ export const GearsOfHistory: Game<GState> = {
       round: 1,
       maxBuildSlots: 20,
       _skipsThisPolicyPhase: 0,
-      _policyTurnsLeft: 0,
+      _policyTurnsLeft: ctx.numPlayers,
       cardById,
     };
   },

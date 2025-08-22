@@ -127,6 +127,8 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                     残り建築回数: {remainBuild}
                                     <br/>
                                     残り利用可能コスト: {budget}（最大: {availableCost(me)}）
+                                    <br/>
+                                    <button onClick={() => (moves as any).endBuildTurn(myID)} >建築完了</button>
                                 </div>
                             )}
                             {/* グループ表示（タイプごとに id で昇順） */}
@@ -200,6 +202,40 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 {ctx.phase === 'cleanup' && (
                     <button onClick={() => (moves as any).finalizeCleanup()}>クリンナップ確定</button>
                 )}
+                <div>
+                    <b>表</b>:
+                    <ul>
+                        {me.built.map(id => (
+                            <li key={id}>
+                                {G.cardById?.[id]?.name ?? id}
+                                {ctx.phase === 'cleanup' && myID === ctx.currentPlayer && (
+                                    <button onClick={() => (moves as any).toggleFace(id)} style={{ marginLeft: 8 }}>
+                                        裏にする
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                        {me.built.length === 0 && <li style={{ opacity:.6 }}>（なし）</li>}
+                    </ul>
+                </div>
+                <div>
+                    <b>裏</b>:
+                    <ul>
+                        {me.builtFaceDown.map(id => (
+                            <li key={id}>
+                                {G.cardById?.[id]?.name ?? id}
+                                {ctx.phase === 'cleanup' && myID === ctx.currentPlayer && (
+                                    <button onClick={() => (moves as any).toggleFace(id)} style={{ marginLeft: 8 }}>
+                                        表にする
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                        {me.builtFaceDown.length === 0 && <li style={{ opacity:.6 }}>（なし）</li>}
+                    </ul>
+                    <div style={{ fontSize: 12, opacity: .7 }}>※ 7不思議は裏面不可</div>
+                </div>
+                <div><b>pending</b>: {me.pendingBuilt.join(', ') || '-'}</div>
             </section>
 
             <hr/>

@@ -184,18 +184,18 @@ export const GearsOfHistory: Game<GState> = {
           if (i >= 0) { p.builtFaceDown.splice(i,1); p.built.push(cardID); return; }
         },
         finalizeCleanup: ({ G, events }) => {
-          // pending → built（上限超過なら pending のまま）
+          // pending → built（上限に達したら残りはpendingのまま）
           for (const p of Object.values(G.players)) {
             while (p.pendingBuilt.length > 0 && p.built.length < G.maxBuildSlots) {
               const cid = p.pendingBuilt.shift()!;
               p.built.push(cid);
             }
+            // 効果・要求の再計算と「自由コマ2の保証」をサーバで強制
             recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
           }
           events.endTurn();
         },
       },
-      endIf: ({ ctx }) => ctx.turn >= ctx.numPlayers,
       onEnd: ({ G }) => {
         // 7不思議公開（ラウンド2,5,8）
         if ([2,5,8].includes(G.round as number)) {
@@ -211,6 +211,21 @@ export const GearsOfHistory: Game<GState> = {
 
         // ラウンド進行
         G.round += 1;
+
+        // ★ ラウンド限定効果をリセット（持ち越し禁止）
+        for (const [pid, p] of Object.entries(G.players)) {
+          p.roundDelta.gear = 0;
+          p.roundDelta.food = 0;
+          p.roundLaborDelta.required = 0;
+          p.roundLaborDelta.reduction = 0;
+          p.roundBuildActionsBonus = 0;
+          p.roundInventActionsBonus = 0;
+        }
+        for (const pid of G.order) {
+          G._inventRemaining[pid] = 0;
+          if (G._buildRemaining) G._buildRemaining[pid] = 0;
+          if ((G as any)._buildBudget) (G as any)._buildBudget[pid] = 0;
+        }
       },
       next: ({ G }) => (G.round > 10 ? undefined : 'policy'),
     },

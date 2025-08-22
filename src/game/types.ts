@@ -26,14 +26,15 @@ export interface BaseCard {
   description?: string; // 説明文（省略可）
   kind: CardKind;
   cost: number;            // 建築コスト（0可）
-  vp: number;              // VP（表のときのみ有効）
+  vp: number;              // 勝利点（VP）
   effects: CardEffect[];   // 上記の簡易DSL。必要に応じて拡張
 }
 
 export interface TechCard extends BaseCard {
   kind: 'Tech';
+  buildType: BuildType; 
 }
-export type BaseBuildingType = '' 
+export type BuildType = 'Land' | 'ProdFacility' | 'FoodFacility' | 'Infrastructure' | 'Government';
 
 export interface WonderCard extends BaseCard {
   kind: 'Wonder';

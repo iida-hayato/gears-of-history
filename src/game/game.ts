@@ -2,7 +2,7 @@ import type { Game } from 'boardgame.io';
 import { TurnOrder } from 'boardgame.io/core';
 import {GState, PlayerID, AnyCard, freeLeadersAvailable} from './types';
 import { initPlayers, recomputeRoundBonuses, policyMoveAndCountSkips, recomputeLaborAndEnforceFreeLeaders, computeRoundTurnOrderByRing } from './logic';
-import { samplePolicies, sampleTechDeck, sampleWondersByEra } from './cards';
+import {baseTechDeck, samplePolicies, sampleWondersByEra} from './cards';
 
 export const GearsOfHistory: Game<GState> = {
   name: 'GearsOfHistory',
@@ -15,7 +15,7 @@ export const GearsOfHistory: Game<GState> = {
     // 全員をリング上へ（インデックスを均等配置 or 0から順に配置）
     order.forEach((id, i) => { players[id].policyPos = i % policyDeck.length; });
     // 全カード辞書を構築
-    const techDeck = sampleTechDeck();
+    const techDeck = baseTechDeck();
     const wondersByEra = sampleWondersByEra();
     const cardById: Record<string, AnyCard> = {};
     for (const c of policyDeck) cardById[c.id] = c;

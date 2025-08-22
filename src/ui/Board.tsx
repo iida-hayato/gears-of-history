@@ -13,43 +13,45 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
             <section>
                 <h3>政策リング（start:{G.ring.startMarkerIndex}）</h3>
                 <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8}}>
-                    {G.ring.policyDeck.map((card, idx) => {
-                        const isStart = idx === G.ring.startMarkerIndex;
-                        const occupants = Object.values(G.players).filter(p => p.policyPos === idx).map(p => p.id);
+                    {(() => {
+                        const n = G.ring.policyDeck.length;
+                        const size = 640; // 直径
+                        const r = size / 2 - 60; // 半径（カード分の余白）
+                        const cx = size / 2, cy = size / 2;
                         return (
-                            <div
-                                key={card.id}
-                                style={{
-                                    border: `2px solid ${isStart ? '#2b6cb0' : '#999'}`,
-                                    padding: 8,
-                                    borderRadius: 8,
-                                    position: 'relative',
-                                    background: isStart ? 'rgba(66,153,225,0.08)' : undefined,
-                                }}
-                            >
-                                {isStart && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 6,
-                                        right: 6,
-                                        fontSize: 12,
-                                        padding: '2px 6px',
-                                        borderRadius: 12,
-                                        border: '1px solid #2b6cb0'
-                                    }}>
-                                        START
-                                    </div>
-                                )}
-                                <div><b>{idx}</b> {card.name}</div>
-                                <div>
-                                    {card.effects.map((e, i) => (
-                                        <div key={i}>{JSON.stringify(e)}</div>
-                                    ))}
-                                </div>
-                                <div>占有: {occupants.length ? occupants.join(', ') : '-'}</div>
+                            <div style={{ position: 'relative', width: size, height: size, margin: '8px auto', borderRadius: '50%', border: '1px dashed #bbb' }}>
+                                {/* 円周上に等間隔配置 */}
+                                {G.ring.policyDeck.map((card, idx) => {
+                                    const isStart = idx === G.ring.startMarkerIndex;
+                                    const occupants = Object.values(G.players).filter(p => p.policyPos === idx).map(p => p.id);
+                                    const angle = (idx / n) * Math.PI * 2 - Math.PI / 2; // 12時基準
+                                    const x = cx + r * Math.cos(angle);
+                                    const y = cy + r * Math.sin(angle);
+                                    return (
+                                        <div key={card.id} style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)' }}>
+                                            <div style={{
+                                                width: 120,
+                                                border: `2px solid ${isStart ? '#2b6cb0' : '#999'}`,
+                                                padding: 8,
+                                                borderRadius: 8,
+                                                background: isStart ? 'rgba(66,153,225,0.08)' : 'white',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                            }}>
+                                                {isStart && (
+                                                    <div style={{ position: 'absolute', top: -10, right: -10, fontSize: 12, padding: '2px 6px', borderRadius: 12, border: '1px solid #2b6cb0', background: '#fff' }}>START</div>
+                                                )}
+                                                <div><b>{idx}</b> {card.name}</div>
+                                                <div style={{ fontSize: 12, opacity: .8 }}>{card.description}</div>
+                                                <div style={{ fontSize: 12 }}>占有: {occupants.length ? occupants.join(', ') : '-'}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {/* 回転方向ヒント */}
+                                <div style={{ position: 'absolute', left: 8, top: 8, fontSize: 12, opacity: .6 }}>↻ 時計回り</div>
                             </div>
                         );
-                    })}
+                    })()}
                 </div>
                 {ctx.phase === 'policy' && (
                     <div style={{marginTop: 8}}>

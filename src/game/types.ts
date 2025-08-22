@@ -23,6 +23,7 @@ export type CardEffect =
 export interface BaseCard {
   id: string;
   name: string;
+  description?: string; // 説明文（省略可）
   kind: CardKind;
   cost: number;            // 建築コスト（0可）
   vp: number;              // VP（表のときのみ有効）
@@ -32,6 +33,7 @@ export interface BaseCard {
 export interface TechCard extends BaseCard {
   kind: 'Tech';
 }
+export type BaseBuildingType = '' 
 
 export interface WonderCard extends BaseCard {
   kind: 'Wonder';
@@ -103,8 +105,10 @@ export interface GState {
 export type MoveCtx = {
   G: GState;
   ctx: import('boardgame.io').Ctx;
+  // @ts-ignore
   events: import('boardgame.io').EventsAPI;
   playerID: PlayerID;
+  // @ts-ignore
   random: import('boardgame.io').RandomAPI;
 };
 

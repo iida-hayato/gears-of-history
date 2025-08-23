@@ -1,6 +1,13 @@
 import React from 'react';
 import type {BoardProps} from 'boardgame.io/react';
-import {freeLeadersAvailable, GState} from '../game/types';
+import {
+    BUILD_TYPE_ORDER, BuildType,
+    foodByPlayer,
+    freeLeadersAvailable,
+    gearByPlayer,
+    GState,
+    laborRequiredByPlayer
+} from '../game/types';
 import {availableCost, buildActionsThisRound, inventActionsThisRound} from '../game/types';
 import {Simulate} from "react-dom/test-utils";
 import play = Simulate.play;
@@ -114,7 +121,10 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                         const k = (c.buildType ?? 'Land') as string;
                         (byType[k] ??= { deck: 0, cards: [] }).deck++;
                     }
-                    const typeKeys = Object.keys(byType).sort();
+                    const typeKeys: string[] = [
+                           ...BUILD_TYPE_ORDER.filter(k => byType[k]),                                  // BuildType[] → string[]へ
+                           ...Object.keys(byType).filter(k => !BUILD_TYPE_ORDER.includes(k as BuildType)).sort(),
+                    ];
                     return (
                         <div style={{ width: 640}}>
                             {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
@@ -194,11 +204,14 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
 
             <section>
                 <h3>あなたの状態 (P{myID})</h3>
+                <div>歯車: {gearByPlayer(me)}</div>
+                <div>食料: {foodByPlayer(me)}</div>
+                <div>労働力拘束: {laborRequiredByPlayer(me)}</div>
+                <div>指導者コマ: {freeLeadersAvailable(me)}</div>
+                
                 <div>最大利用可能コスト: {availableCost(me)}</div>
                 <div>建築権(目安): {buildActionsThisRound(me)}</div>
                 <div>発明権(目安): {inventActionsThisRound(me)}</div>
-                <div>表: {me.built.join(', ') || '-'}</div>
-                <div>pending: {me.pendingBuilt.join(', ') || '-'}</div>
                 {ctx.phase === 'cleanup' && (
                     <button onClick={() => (moves as any).finalizeCleanup()}>クリンナップ確定</button>
                 )}
@@ -207,7 +220,10 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                     <ul>
                         {me.built.map(id => (
                             <li key={id}>
-                                {G.cardById?.[id]?.name ?? id}
+                                {G.cardById?.[id]?.name ?? id}<br/>
+                                {G.cardById?.[id]?.description}<br/>
+                                勝利点: {G.cardById?.[id]?.vp}<br/>
+                                コスト: {G.cardById?.[id]?.cost}<br/>
                                 {ctx.phase === 'cleanup' && myID === ctx.currentPlayer && (
                                     <button onClick={() => (moves as any).toggleFace(id)} style={{ marginLeft: 8 }}>
                                         裏にする
@@ -235,7 +251,6 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                     </ul>
                     <div style={{ fontSize: 12, opacity: .7 }}>※ 7不思議は裏面不可</div>
                 </div>
-                <div><b>pending</b>: {me.pendingBuilt.join(', ') || '-'}</div>
             </section>
 
             <hr/>

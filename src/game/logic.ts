@@ -132,3 +132,21 @@ export function computeRoundTurnOrderByRing(G: GState): PlayerID[] {
     const dist = (a: number) => (a - marker + G.ring.policyDeck.length) % G.ring.policyDeck.length;
     return entries.sort((a, b) => dist(a.pos) - dist(b.pos)).map(e => e.id);
 }
+
+export function recomputePersistentProduction(G: GState, p: PlayerState) {
+      let gear = 0;
+      let food = 0;
+
+    for (const id of p.built) {
+        const c = G.cardById[id] as AnyCard | undefined;
+        if (!c || !('effects' in c) || !Array.isArray(c.effects)) continue;
+        for (const ef of c.effects) {
+            if (ef.scope === 'persistent') {
+                if (ef.tag === 'gearDelta') gear += ef.amount ?? 0;
+                if (ef.tag === 'foodDelta') food += ef.amount ?? 0;
+            }
+        }
+    }
+    p.base.gear = Math.max(0, gear);
+    p.base.food = Math.max(0, food);
+}

@@ -15,8 +15,8 @@ export type CardKind = 'Policy' | 'Tech' | 'Wonder';
 export type CardEffect =
   | { tag: 'gearDelta'; amount: number; scope: 'round' | 'persistent' }
   | { tag: 'foodDelta'; amount: number; scope: 'round' | 'persistent' }
-  | { tag: 'laborReqDelta'; amount: number }
-  | { tag: 'laborReduceDelta'; amount: number }
+  | { tag: 'laborReqDelta'; amount: number, scope: 'persistent'}
+  | { tag: 'laborReduceDelta'; amount: number, scope: 'persistent'}
   | { tag: 'buildActionsDelta'; amount: number; scope: 'round' }
   | { tag: 'inventActionsDelta'; amount: number; scope: 'round' };
 
@@ -32,10 +32,27 @@ export interface BaseCard {
 
 export interface TechCard extends BaseCard {
   kind: 'Tech';
+  serial: number; // 並び順
   buildType: BuildType; 
 }
 export type BuildType = 'Land' | 'ProdFacility' | 'FoodFacility' | 'Infrastructure' | 'Government';
+export const BUILD_TYPE_ORDER: Readonly<BuildType[]> = [
+  'Land',
+  'FoodFacility',
+  'ProdFacility',
+  'Infrastructure',
+  'Government',
+];
 
+export const cmpBuildType = (a?: BuildType, b?: BuildType): number => {
+  const idx = (t?: BuildType) => {
+    const i = BUILD_TYPE_ORDER.indexOf((t ?? 'Land') as BuildType);
+    return i < 0 ? 1e9 : i;
+  };
+  return idx(a) - idx(b);
+};
+
+    
 export interface WonderCard extends BaseCard {
   kind: 'Wonder';
   era: 1 | 2 | 3;          // 時代
@@ -135,3 +152,12 @@ export const buildActionsThisRound = (p: PlayerState): number =>
 
 export const inventActionsThisRound = (p: PlayerState): number =>
     freeLeadersAvailable(p) + p.roundInventActionsBonus;
+
+
+export const gearByPlayer = (p: PlayerState): number => 
+    p.base.gear;
+export const foodByPlayer = (p: PlayerState): number =>
+    p.base.food;
+export const laborRequiredByPlayer = (p: PlayerState): number =>
+    p.labor.required - p.labor.reduction ;
+    

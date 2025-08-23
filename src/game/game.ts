@@ -8,10 +8,17 @@ import {
   BuildType,
   TechCard,
   inventActionsThisRound,
-  buildActionsThisRound, availableCost
+  buildActionsThisRound, availableCost, cmpBuildType
 } from './types';
-import { initPlayers, recomputeRoundBonuses, policyMoveAndCountSkips, recomputeLaborAndEnforceFreeLeaders, computeRoundTurnOrderByRing } from './logic';
-import {baseTechDeck, samplePolicies, sampleWondersByEra} from './cards';
+import {
+  initPlayers,
+  recomputeRoundBonuses,
+  policyMoveAndCountSkips,
+  recomputeLaborAndEnforceFreeLeaders,
+  computeRoundTurnOrderByRing,
+  recomputePersistentProduction
+} from './logic';
+import {baseTechDeck, initialTechDeck, samplePolicies, sampleWondersByEra} from './cards';
 
 export const GearsOfHistory: Game<GState> = {
   name: 'GearsOfHistory',
@@ -31,6 +38,19 @@ export const GearsOfHistory: Game<GState> = {
     for (const c of techDeck) cardById[c.id] = c;
     for (const era of [1, 2, 3] as const) for (const c of wondersByEra[era]) cardById[c.id] = c;
     for (const p of Object.values(players)) p.policySpent = 0;
+    // 初期建築をプレイヤーに配布
+    for (const id of order) {
+      const p = players[id];
+      // 初期建築カード3枚(固定)
+      const initCards = initialTechDeck()
+      // idを採番
+      initCards.forEach((c, i) => {
+        c.id = `${c.id}-P${i}`;
+        cardById[c.id] = c;
+        // Playerの建築済みエリアに追加
+        p.built.push(c.id);
+      });
+    }
 
     return {
       players,
@@ -119,7 +139,7 @@ export const GearsOfHistory: Game<GState> = {
           if (!card) return INVALID_MOVE;
           G.market.techMarket.push(card);
           // 同タイプ内の見た目順：UIがグルーピングするが、全体でも安定化
-          G.market.techMarket.sort(sortById);
+          G.market.techMarket.sort(sortTechForMarket);
           G._inventRemaining[pid] = remain - 1;
           if (remain - 1 <= 0) return events.endTurn();
         },
@@ -225,6 +245,8 @@ export const GearsOfHistory: Game<GState> = {
           if (i >= 0) { p.built.splice(i,1); p.builtFaceDown.push(cardID); return; }
           i = p.builtFaceDown.indexOf(cardID);
           if (i >= 0) { p.builtFaceDown.splice(i,1); p.built.push(cardID); return; }
+          recomputePersistentProduction(G, p);
+          recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
         },
         finalizeCleanup: ({ G, playerID, events }) => {
           const p = G.players[playerID!];           // ← 現在手番のみ
@@ -232,6 +254,7 @@ export const GearsOfHistory: Game<GState> = {
             const cid = p.pendingBuilt.shift()!;
             p.built.push(cid);
           }
+          recomputePersistentProduction(G, p);
           recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
           events.endTurn();
         },
@@ -276,6 +299,7 @@ export const GearsOfHistory: Game<GState> = {
             const cid = p.pendingBuilt.shift()!;
             p.built.push(cid);
           }
+          recomputePersistentProduction(G, p);
           recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
         }
       },
@@ -312,9 +336,12 @@ function vpOf(G: GState, cardID: string): number {
         return c as TechCard;
       }
 // 比較：id
-function sortById(a: TechCard, b: TechCard): number {
-    return a.id.localeCompare(b.id);
-  }
+function sortTechForMarket(a: TechCard, b: TechCard): number {
+  const t = cmpBuildType(a.buildType, b.buildType);
+  if (t) return t;
+  if (a.serial !== b.serial) return a.serial - b.serial;
+  return a.id.localeCompare(b.id);
+}
 
   // ヘルパ：指定時代の7不思議があるかどうか.各時代の七不思議は1つずつしか建てられない
 function hasWonderInEra(G: GState, pid: PlayerID, era: 1|2|3): boolean {

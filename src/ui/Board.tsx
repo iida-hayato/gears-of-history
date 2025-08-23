@@ -112,14 +112,21 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                     const remainInvent = (G._inventRemaining as any)?.[myID] ?? 0;             // ※コメント3：残回数表示
                     const remainBuild = (G._buildRemaining as any)?.[myID] ?? 0;
                     const budget       = (G._buildBudget      as any)?.[myID] ?? 0;
-                    const byType: Record<string, { deck: number; cards: any[] }> = {};
+                    const byType: Record<string, { deck: number; faceUp:number, cards: any[] ,faceUpCards: any[] }> = {};
                     for (const c of G.market.techMarket) {
                         const k = (c.buildType ?? 'Land') as string;
-                        (byType[k] ??= { deck: 0, cards: [] }).cards.push(c);
+                        (byType[k] ??= { deck: 0,faceUp:0, cards: [],faceUpCards: [] }).cards.push(c);
                     }
                     for (const c of G.market.techDeck) {
                         const k = (c.buildType ?? 'Land') as string;
-                        (byType[k] ??= { deck: 0, cards: [] }).deck++;
+                        (byType[k] ??= { deck: 0,faceUp:0, cards: [],faceUpCards: [] }).deck++;
+                    }
+                    // 表の知識庫（公開情報）も集計
+                    for (const c of (G.market as any).techFaceUp ?? []) {
+                      const k = (c.buildType ?? 'Land') as string;
+                      (byType[k] ??= { deck: 0, faceUp: 0, cards: [], faceUpCards: [] });
+                      byType[k].faceUp++;
+                      byType[k].faceUpCards.push(c);
                     }
                     const typeKeys: string[] = [
                            ...BUILD_TYPE_ORDER.filter(k => byType[k]),                                  // BuildType[] → string[]へ
@@ -152,21 +159,44 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                     <div key={k} style={{ margin: '8px 0', padding: 8, border: '1px solid #ddd', borderRadius: 8 }}>
                                         <div style={{ display:'flex', justifyContent:'space-between' }}>
                                             <div><b>{k}</b></div>
-                                            <div style={{ fontSize:12, opacity:.7 }}>山札残: {byType[k].deck}</div>
+                                             <div style={{ fontSize:12, opacity:.7 }}>
+                                               山札: {byType[k].deck}／表: {byType[k].faceUp}
+                                             </div>
                                         </div>
                                         {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
                                             <div>
                                                 <button
                                                     onClick={() => (moves as any).inventType(k)}
-                                                    disabled={remainInvent<=0 || byType[k].deck<=0}
+                                                    disabled={remainInvent<=0 || (byType[k].deck + byType[k].faceUp) <= 0}
                                                 >
                                                     公開（{k}）
                                                 </button>
                                             </div>
                                         )}
+                                            <>
+                                                <div style={{ fontSize:12, opacity:.8, marginBottom:4 }}>表の知識庫（公開情報）</div>
+                                                {!!byType[k].faceUp && (
+                                                <ul style={{ margin: 0 }}>
+                                                    {byType[k].faceUpCards
+                                                        .slice()
+                                                        .sort((a,b)=> a.id.localeCompare(b.id))
+                                                        .map((c,i)=>(
+                                                            <li key={`${c.id}:fu:${i}`}>
+                                                                {c.name}<br/>
+                                                                {c.description}<br/>
+                                                                勝利点: {c.vp}<br/>
+                                                                コスト: {c.cost}
+                                                                </li>
+                                                        ))
+                                                    }
+                                                </ul>
+                                                )}
+                                                <hr style={{ margin: '8px 0', border: 0, borderTop: '1px dashed #bbb' }} />
+                                            </>
+                                        <div style={{ fontSize:12, opacity:.8, marginBottom:4 }}>発明済みの知識</div>
                                         <ul style={{ margin: '6px 0' }}>
                                             {cards.map((c,index) => (
-                                                <li key={index}>
+                                                <li key={`${c.id}:${index}`}>
                                                     {c.name}<br/>
                                                     {c.description}<br/>
                                                     勝利点: {c.vp}<br/>
@@ -178,9 +208,8 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                                     )}
                                                 </li>
                                             ))}
-                                            {cards.length === 0 && <li style={{ opacity:.6 }}>（公開なし）</li>}
+                                            {cards.length === 0 && <li style={{ opacity:.6 }}>（なし）</li>}
                                         </ul>
-                                        
                                     </div>
                                 );
                             })}
@@ -199,7 +228,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                             )}
                                         </li>
                                     ))}
-                                    {G.market.wonderMarket.length === 0 && <li style={{ opacity:.6 }}>（公開なし）</li>}
+                                    {G.market.wonderMarket.length === 0 && <li style={{ opacity:.6 }}>（発明済みなし）</li>}
                                 </ul>
                             </div>
                         </div>

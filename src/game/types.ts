@@ -96,6 +96,7 @@ export interface PlayerState {
 export interface MarketState {
   // 未開の知識庫（山札相当）
   techDeck: TechCard[];                 // タイプ分けは簡略化
+  techFaceUp: TechCard[]; // 公開済みのカード
   wondersByEra: Record<1 | 2 | 3, WonderCard[]>; // 各時代の山
 
   // 技術市場（コスト昇順で並べる）

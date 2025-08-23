@@ -58,6 +58,7 @@ export const GearsOfHistory: Game<GState> = {
       ring: { policyDeck, startMarkerIndex: 0 },
       market: {
         techDeck,
+        techFaceUp: [],
         wondersByEra,
         techMarket: [],
         wonderMarket: [],
@@ -264,20 +265,8 @@ export const GearsOfHistory: Game<GState> = {
         },
       },
       onEnd: ({ G }) => {
-        // 7不思議公開（ラウンド2,5,8）
-        if ([2,5,8].includes(G.round as number)) {
-          const era = (G.round === 2 ? 1 : G.round === 5 ? 2 : 3) as 1|2|3;
-          G.market.wonderMarket = [...G.market.wondersByEra[era]];
-          // 旧時代は陳腐化
-          if (era > 1) G.market.wondersByEra[1] = [];
-          if (era > 2) G.market.wondersByEra[2] = [];
-        }
-        // 技術市場の残カードは知識庫へ戻す
-        G.market.techDeck.push(...G.market.techMarket);
-        G.market.techMarket = [];
-
-        // ラウンド進行
-        G.round += 1;
+        // 市場の回転とラウンド進行
+        advanceRoundAndRotateMarkets(G);
 
         // ★ ラウンド限定効果をリセット（持ち越し禁止）
         for (const [pid, p] of Object.entries(G.players)) {
@@ -332,13 +321,21 @@ function vpOf(G: GState, cardID: string): number {
 }
 
 
-// ヘルパ：指定タイプの次カードをデッキから引く（なければ undefined）
-    function drawNextTechOfType(G: GState, t: BuildType | undefined): TechCard | undefined {
-        const idx = G.market.techDeck.findIndex(c => (c.buildType ?? 'Land') === (t ?? 'Land'));
-        if (idx < 0) return undefined;
-        const [c] = G.market.techDeck.splice(idx, 1);
-        return c as TechCard;
-      }
+// 優先順：表の知識庫 → 伏せ山（デッキ）
+function drawNextTechOfType(G: GState, t: BuildType | undefined): TechCard | undefined {
+  const want = (t ?? 'Land') as BuildType;
+  const iOpen = G.market.techFaceUp.findIndex(c => (c.buildType ?? 'Land') === want);
+  if (iOpen >= 0) {
+    const [c] = G.market.techFaceUp.splice(iOpen, 1);
+    return c as TechCard;
+  }
+  const iDeck = G.market.techDeck.findIndex(c => (c.buildType ?? 'Land') === want);
+  if (iDeck >= 0) {
+    const [c] = G.market.techDeck.splice(iDeck, 1);
+    return c as TechCard;
+  }
+  return undefined;
+}
 // 比較：id
 function sortTechForMarket(a: TechCard, b: TechCard): number {
   const t = cmpBuildType(a.buildType, b.buildType);
@@ -355,4 +352,37 @@ function hasWonderInEra(G: GState, pid: PlayerID, era: 1|2|3): boolean {
     const c = G.cardById[id];
     return c?.kind === 'Wonder' && (c as any).era === era;
   });
+}
+
+// 追加：時代計算（ラウンド番号→時代）
+function eraOfRound(r: number): 0|1|2|3 {
+  if (r >= 8) return 3;
+  if (r >= 5) return 2;
+  if (r >= 2) return 1;
+  return 0;
+}
+
+// 追加：ラウンドを進めつつ、市場を正しく回転
+function advanceRoundAndRotateMarkets(G: GState) {
+  const nextRound = (G.round ?? 1) + 1;
+  const prevEra  = eraOfRound(G.round);
+  const nextEra  = eraOfRound(nextRound);
+
+  // ★ Tech：未建築は知識庫へ戻す（仕様通り、ここでのみクリア）
+  if (G.market.techMarket.length) {
+    G.market.techFaceUp.push(...G.market.techMarket);
+    G.market.techMarket = [];
+  }
+
+  // ★ Wonder：時代が変わる時だけ公開リストを差し替える
+  if (nextEra !== prevEra && nextEra !== 0) {
+    // 新時代公開
+    G.market.wonderMarket = [...G.market.wondersByEra[nextEra]];
+    // 旧時代を陳腐化（完全除外）
+    for (const e of [1,2,3] as const) {
+      if (e < nextEra) G.market.wondersByEra[e] = [];
+    }
+  }
+  // ラウンド進行は最後に
+  G.round = nextRound;
 }

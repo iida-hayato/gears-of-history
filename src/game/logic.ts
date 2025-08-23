@@ -107,16 +107,7 @@ export function recomputeLaborAndEnforceFreeLeaders(p: PlayerState, maxBuildSlot
     const lockedNeeded = Math.max(0, required - reduced);
     p.lockedLeaders = lockedNeeded;
 
-    const free = Math.max(0, p.totalLeaders - 1 - p.lockedLeaders);
-    if (free < 2) {
-        // 裏返せるカードから労働要求を減らす（簡易: built → builtFaceDown に移す）
-        while (p.built.length > 0 && Math.max(0, p.totalLeaders - 1 - p.lockedLeaders) < 2) {
-            const cid = p.built.pop()!;
-            p.builtFaceDown.push(cid);
-            // 仮に裏返しで労働要求1減るとする（本実装ではカード由来の効果差分を正しく反映）
-            p.lockedLeaders = Math.max(0, p.lockedLeaders - 1);
-        }
-    }
+    
     // 建築上限: 20（7不思議を除く）
     if (p.built.length > maxBuildSlots) {
         // 余剰は pending のまま（= 自ボード横）

@@ -217,7 +217,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 <div>指導者コマ(目安): {persistentAvailableLeaderByPlayer(me)}</div>
                 <div>建築権(目安): {buildActionsThisRound(me)}</div>
                 <div>発明権(目安): {inventActionsThisRound(me)}</div>
-                {ctx.phase === 'cleanup' && (
+                {ctx.phase === 'cleanup' && myID === ctx.currentPlayer && (
                     <>
                     <button onClick={() => (moves as any).finalizeCleanup()}
                     disabled={persistentAvailableLeaderByPlayer(me)<2}

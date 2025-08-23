@@ -118,15 +118,37 @@ export const baseTechDeck = (): TechCard[] => [
     ...governmentTechDeck(),
 ];
 
+// テスト用のカード設定。本来はユニークな効果とコンボを持つべきだが、もろもろうまく行った想定の効果だけ記述しておく。
 export const sampleWondersByEra = (): Record<1 | 2 | 3, WonderCard[]> => ({
   1: [
     { id: 'W1-001', name: 'ギザの大ピラミッド', kind: 'Wonder', era: 1, cost: 3, vp: 3, effects: [{ tag: 'buildActionsDelta', amount: 1, scope: 'round' }] },
     { id: 'W1-002', name: 'ロードスの巨神像', kind: 'Wonder', era: 1, cost: 3, vp: 2, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W1-003', name: 'バビロンの空中庭園', kind: 'Wonder', era: 1, cost: 3, vp: 4, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W1-004', name: 'アルテミス神殿', kind: 'Wonder', era: 1, cost: 3, vp: 3, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W1-005', name: 'ヘラクレスの大柱', kind: 'Wonder', era: 1, cost: 3, vp: 2, effects: [{ tag: 'buildActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W1-006', name: 'オリンピアのゼウス像', kind: 'Wonder', era: 1, cost: 3, vp: 4, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W1-007', name: 'マウソロス霊廟', kind: 'Wonder', era: 1, cost: 3, vp: 3, effects: [{ tag: 'buildActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W1-008', name: 'ロドス島の巨像', kind: 'Wonder', era: 1, cost: 3, vp: 2, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W1-009', name: 'アレクサンドリアの大灯台', kind: 'Wonder', era: 1, cost: 3, vp: 4, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
   ],
   2: [
     { id: 'W2-001', name: 'ノートルダム大聖堂', kind: 'Wonder', era: 2, cost: 3, vp: 5, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W2-002', name: '万里の長城', kind: 'Wonder', era: 2, cost: 4, vp: 6, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }, { tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W2-003', name: 'タージ・マハル', kind: 'Wonder', era: 2, cost: 4, vp: 5, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W2-004', name: 'コロッセオ', kind: 'Wonder', era: 2, cost: 4, vp: 6, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }, { tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W2-005', name: 'ピサの斜塔', kind: 'Wonder', era: 2, cost: 3, vp: 5, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W2-006', name: 'アヤソフィア大聖堂', kind: 'Wonder', era: 2, cost: 4, vp: 6, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }, { tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W2-007', name: 'シドニー・オペラハウス', kind: 'Wonder', era: 2, cost: 4, vp: 5, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W2-008', name: '自由の女神像', kind: 'Wonder', era: 2, cost: 4, vp: 6, effects: [{ tag: 'foodDelta', amount: 1, scope: 'persistent' }, { tag: 'gearDelta', amount: 1, scope: 'persistent' }] },
   ],
   3: [
     { id: 'W3-001', name: 'ルーヴル美術館', kind: 'Wonder', era: 3, cost: 4, vp: 8, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }, { tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
-  ],
+    { id: 'W3-002', name: 'エッフェル塔', kind: 'Wonder', era: 3, cost: 4, vp: 7, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W3-003', name: 'ビッグ・ベン', kind: 'Wonder', era: 3, cost: 4, vp: 8, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }, { tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W3-004', name: 'サグラダ・ファミリア', kind: 'Wonder', era: 3, cost: 4, vp: 7, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W3-005', name: 'ブルジュ・ハリファ', kind: 'Wonder', era: 3, cost: 4, vp: 8, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }, { tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W3-006', name: 'シャンゼリゼ通り', kind: 'Wonder', era: 3, cost: 4, vp: 7, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] },
+    { id: 'W3-007', name: 'グッゲンハイム美術館', kind: 'Wonder', era: 3, cost: 4, vp: 8, effects: [{ tag: 'gearDelta', amount: 1, scope: 'persistent' }, { tag: 'foodDelta', amount: 1, scope: 'persistent' }] },
+    { id: 'W3-008', name: 'マチュ・ピチュ', kind: 'Wonder', era: 3, cost: 4, vp: 7, effects: [{ tag: 'inventActionsDelta', amount: 1, scope: 'round' }] }
+  ]
 });

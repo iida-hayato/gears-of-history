@@ -356,7 +356,7 @@ function hasWonderInEra(G: GState, pid: PlayerID, era: 1|2|3): boolean {
 
 // 追加：時代計算（ラウンド番号→時代）
 function eraOfRound(r: number): 0|1|2|3 {
-  if (r >= 8) return 3;
+  if (r >= 9) return 3;
   if (r >= 6) return 2;
   if (r >= 3) return 1;
   return 0;

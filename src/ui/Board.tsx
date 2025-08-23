@@ -26,7 +26,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
     return (
         <div style={{padding: 16, fontFamily: 'system-ui, sans-serif'}}>
             <section>
-                <h3>政策リング（start:{G.ring.startMarkerIndex}）</h3>
+                <h3>政策リング（ラウンド:{G.round}）</h3>
                 <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8}}>
                     {(() => {
                         const n = G.ring.policyDeck.length;
@@ -213,12 +213,19 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                     </div>
                                 );
                             })}
-                            <div style={{ marginTop: 12 }}>
-                                <b>Wonders:</b>
+                            <div style={{ margin: '8px 0', padding: 8, border: '1px solid #ddd', borderRadius: 8 }}>
+                                <b>七不思議(建築可能):</b>
                                 <ul>
                                     {G.market.wonderMarket.map(w => (
                                         <li key={w.id}>
-                                            [era{(w as any).era}] [{w.cost}] {w.name}
+                                            [時代{(w as any).era}] {w.name}<br/>
+                                            <div style={{fontSize:12,opacity:.8}}>
+                                                {(w.effects ?? []).map((ef:any, j:number) => (
+                                                    <span key={`${w.id}:ef:${j}`}>{fmtEffect(ef)} </span>
+                                                ))}
+                                            </div>
+                                            勝利点: {w.vp}<br/>
+                                            コスト: {w.cost}<br/>
                                             {ctx.phase === 'build' && myID === ctx.currentPlayer && (
                                                 <button
                                                     onClick={() => (moves as any).buildWonderFromMarket(w.id)}
@@ -228,7 +235,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                             )}
                                         </li>
                                     ))}
-                                    {G.market.wonderMarket.length === 0 && <li style={{ opacity:.6 }}>（発明済みなし）</li>}
+                                    {G.market.wonderMarket.length === 0 && <li style={{ opacity:.6 }}>（なし）</li>}
                                 </ul>
                             </div>
                         </div>
@@ -236,10 +243,10 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 })()}
             </section>
             <section>
-                <h3>7不思議（公開情報）</h3>
+                <h3>七不思議（公開情報セクション）</h3>
                 {(() => {
                     // 現在公開中の時代（R2〜4:1 / R5〜7:2 / R8〜:3）
-                    const eraNow = G.round >= 8 ? 3 : G.round >= 5 ? 2 : G.round >= 2 ? 1 : 0;
+                    const eraNow = G.round >= 9 ? 3 : G.round >= 6 ? 2 : G.round >= 3 ? 1 : 0;
                     const eraLabel = (e:number) =>
                         e === eraNow ? '公開中'
                             : e < eraNow   ? '消滅'
@@ -247,17 +254,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                     const listForEra = (e:1|2|3) =>
                         (e === eraNow ? G.market.wonderMarket : G.market.wondersByEra[e]) ?? [];
 
-                    const fmtEffect = (ef:any) => {
-                        const n = ef.amount >= 0 ? `+${ef.amount}` : `${ef.amount}`;
-                        if (ef.tag === 'gearDelta') return `歯車${n}}`;
-                        if (ef.tag === 'foodDelta') return `食料${n}`;
-                        if (ef.tag === 'buildActionsDelta') return `建築${n}`;
-                        if (ef.tag === 'inventActionsDelta') return `発明${n}`;
-                        if (ef.tag === 'laborReqDelta') return `労働要求${n}`;
-                        if (ef.tag === 'laborReduceDelta') return `労働削減${n}`;
-                        return JSON.stringify(ef);
-                    };
-
+                    
                     return (
                         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
                             {[1,2,3].map((e) => {
@@ -297,7 +294,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 })()}
             </section>
             <section>
-                <h3>あなたの状態 (P{myID})</h3>
+                <h3>個人ボード (P{myID})</h3>
                 <div>手元指導者コマ: {freeLeadersAvailable(me)}</div>
                 <div>歯車: {gearByPlayer(me)}</div>
                 <div>食料: {foodByPlayer(me)}</div>
@@ -358,3 +355,14 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
         </div>
     );
 }
+const fmtEffect = (ef:any) => {
+    const n = ef.amount >= 0 ? `+${ef.amount}` : `${ef.amount}`;
+    if (ef.tag === 'gearDelta') return `歯車${n}}`;
+    if (ef.tag === 'foodDelta') return `食料${n}`;
+    if (ef.tag === 'buildActionsDelta') return `建築${n}`;
+    if (ef.tag === 'inventActionsDelta') return `発明${n}`;
+    if (ef.tag === 'laborReqDelta') return `労働要求${n}`;
+    if (ef.tag === 'laborReduceDelta') return `労働削減${n}`;
+    return JSON.stringify(ef);
+};
+

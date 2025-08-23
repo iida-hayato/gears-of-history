@@ -167,3 +167,6 @@ export const persistentAvailableLeaderByPlayer = (p: PlayerState): number =>
 
 export const persistentAvailableCostByPlayer = (p: PlayerState): number =>
     Math.max(0, Math.min(gearByPlayer(p), foodByPlayer(p)));
+
+export const totalVP = (p: PlayerState, cardById: Record<string, AnyCard>): number => 
+    [...p.built,...p.builtFaceDown].reduce((sum, cid) => sum + (cardById[cid]?.vp ?? 0), 0);

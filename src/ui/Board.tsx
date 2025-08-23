@@ -6,7 +6,7 @@ import {
     freeLeadersAvailable, freeLeadersRaw,
     gearByPlayer,
     GState,
-    laborRequiredByPlayer, persistentAvailableCostByPlayer, persistentAvailableLeaderByPlayer
+    laborRequiredByPlayer, persistentAvailableCostByPlayer, persistentAvailableLeaderByPlayer, totalVP
 } from '../game/types';
 import {availableCost, buildActionsThisRound, inventActionsThisRound} from '../game/types';
 import {Simulate} from "react-dom/test-utils";
@@ -303,6 +303,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 <div>指導者コマ(目安): {persistentAvailableLeaderByPlayer(me)}</div>
                 <div>建築権(目安): {buildActionsThisRound(me)}</div>
                 <div>発明権(目安): {inventActionsThisRound(me)}</div>
+                <div>勝利点: {totalVP(me, G.cardById)}</div>
                 <div>
                     <span>保留中の建築物: </span>
                     {me.pendingBuilt.length === 0 && <span style={{opacity:.6}}>（なし）</span>}

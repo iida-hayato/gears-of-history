@@ -303,6 +303,17 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                 <div>指導者コマ(目安): {persistentAvailableLeaderByPlayer(me)}</div>
                 <div>建築権(目安): {buildActionsThisRound(me)}</div>
                 <div>発明権(目安): {inventActionsThisRound(me)}</div>
+                <div>
+                    <span>保留中の建築物: </span>
+                    {me.pendingBuilt.length === 0 && <span style={{opacity:.6}}>（なし）</span>}
+                    <ul>
+                        {me.pendingBuilt.map(id => (
+                            <li key={id}>
+                                {G.cardById?.[id]?.name ?? id}<br/>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
                 {ctx.phase === 'cleanup' && myID === ctx.currentPlayer && (
                     <>
                     <button onClick={() => (moves as any).finalizeCleanup()}

@@ -206,7 +206,67 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                     );
                 })()}
             </section>
+            <section>
+                <h3>7不思議（公開情報）</h3>
+                {(() => {
+                    // 現在公開中の時代（R2〜4:1 / R5〜7:2 / R8〜:3）
+                    const eraNow = G.round >= 8 ? 3 : G.round >= 5 ? 2 : G.round >= 2 ? 1 : 0;
+                    const eraLabel = (e:number) =>
+                        e === eraNow ? '公開中'
+                            : e < eraNow   ? '消滅'
+                                : '未公開';
+                    const listForEra = (e:1|2|3) =>
+                        (e === eraNow ? G.market.wonderMarket : G.market.wondersByEra[e]) ?? [];
 
+                    const fmtEffect = (ef:any) => {
+                        const n = ef.amount >= 0 ? `+${ef.amount}` : `${ef.amount}`;
+                        if (ef.tag === 'gearDelta') return `歯車${n}}`;
+                        if (ef.tag === 'foodDelta') return `食料${n}`;
+                        if (ef.tag === 'buildActionsDelta') return `建築${n}`;
+                        if (ef.tag === 'inventActionsDelta') return `発明${n}`;
+                        if (ef.tag === 'laborReqDelta') return `労働要求${n}`;
+                        if (ef.tag === 'laborReduceDelta') return `労働削減${n}`;
+                        return JSON.stringify(ef);
+                    };
+
+                    return (
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                            {[1,2,3].map((e) => {
+                                const era = e as 1|2|3;
+                                const round = era === 1 ? 3 : era === 2 ? 6 : 8;
+                                const arr = listForEra(era);
+                                const faded = era < eraNow;
+                                return (
+                                    <div key={`era-${era}`} style={{border:'1px solid #ddd',borderRadius:8,padding:8,opacity:faded?0.6:1}}>
+                                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                                            <b>時代: {era} </b>
+                                            <span style={{fontSize:12,opacity:.7}}>（ラウンド{round}〜）</span>
+                                            <span style={{fontSize:12,opacity:.8}}>{eraLabel(era)}</span>
+                                        </div>
+                                        <ul style={{margin:'6px 0'}}>
+                                            {arr.length ? arr.map((w:any, i:number) => (
+                                                <li key={`${w.id}:${i}`}>
+                                                    [{w.cost}] {w.name} <span style={{fontSize:12,opacity:.75}}>VP {w.vp}</span>
+                                                    <div style={{fontSize:12,opacity:.8}}>
+                                                        {(w.effects ?? []).map((ef:any, j:number) => (
+                                                            <span key={`${w.id}:ef:${j}`}>{fmtEffect(ef)} </span>
+                                                        ))}
+                                                    </div>
+                                                </li>
+                                            )) : <li style={{opacity:.6}}>（なし）</li>}
+                                        </ul>
+                                        <div style={{fontSize:12,opacity:.7}}>
+                                            {era === eraNow ? '※ この時代の7不思議は公開中（建築は別セクションで実施）。'
+                                                : era < eraNow ? '※ 前時代の未建築は消滅しています。'
+                                                    : '※ 未来のラインナップ（発明では出ません）。'}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })()}
+            </section>
             <section>
                 <h3>あなたの状態 (P{myID})</h3>
                 <div>手元指導者コマ: {freeLeadersAvailable(me)}</div>

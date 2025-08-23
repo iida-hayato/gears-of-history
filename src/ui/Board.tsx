@@ -3,10 +3,10 @@ import type {BoardProps} from 'boardgame.io/react';
 import {
     BUILD_TYPE_ORDER, BuildType,
     foodByPlayer,
-    freeLeadersAvailable,
+    freeLeadersAvailable, freeLeadersRaw,
     gearByPlayer,
     GState,
-    laborRequiredByPlayer
+    laborRequiredByPlayer, persistentAvailableCostByPlayer, persistentAvailableLeaderByPlayer
 } from '../game/types';
 import {availableCost, buildActionsThisRound, inventActionsThisRound} from '../game/types';
 import {Simulate} from "react-dom/test-utils";
@@ -130,6 +130,8 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                             {ctx.phase === 'invention' && myID === ctx.currentPlayer && (
                                 <div style={{ marginTop: 6 }}>
                                     残り発明回数: {remainInvent}
+                                    <br/>
+                                    残り利用可能コスト: {budget}（最大: {availableCost(me)}）
                                 </div>
                             )}
                             {ctx.phase === 'build' && myID === ctx.currentPlayer && (
@@ -165,7 +167,10 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                         <ul style={{ margin: '6px 0' }}>
                                             {cards.map((c,index) => (
                                                 <li key={index}>
-                                                    [{c.cost}] {c.name}
+                                                    {c.name}<br/>
+                                                    {c.description}<br/>
+                                                    勝利点: {c.vp}<br/>
+                                                    コスト: {c.cost}<br/>
                                                     {ctx.phase === 'build' && myID === ctx.currentPlayer && (
                                                         <button onClick={() => (moves as any).buildFromMarket(c.id)}
                                                                 disabled={remainBuild<=0 || budget < c.cost}
@@ -204,17 +209,23 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
 
             <section>
                 <h3>あなたの状態 (P{myID})</h3>
+                <div>手元指導者コマ: {freeLeadersAvailable(me)}</div>
                 <div>歯車: {gearByPlayer(me)}</div>
                 <div>食料: {foodByPlayer(me)}</div>
+                <div>利用可能コスト: {persistentAvailableCostByPlayer(me)}</div>
                 <div>労働力拘束: {laborRequiredByPlayer(me)}</div>
-                <div>指導者コマ: {freeLeadersAvailable(me)}</div>
-                
-                <div>最大利用可能コスト: {availableCost(me)}</div>
+                <div>指導者コマ(目安): {persistentAvailableLeaderByPlayer(me)}</div>
                 <div>建築権(目安): {buildActionsThisRound(me)}</div>
                 <div>発明権(目安): {inventActionsThisRound(me)}</div>
                 {ctx.phase === 'cleanup' && (
-                    <button onClick={() => (moves as any).finalizeCleanup()}>クリンナップ確定</button>
+                    <>
+                    <button onClick={() => (moves as any).finalizeCleanup()}
+                    disabled={persistentAvailableLeaderByPlayer(me)<2}
+                    >クリンナップ確定</button>
+                    {persistentAvailableLeaderByPlayer(me)<2 && <span style={{color:'red', marginLeft:8}}>※ 利用可能な指導者コマが2つ未満です！建物を裏返して要求労働力を減らしてください。</span>}
+                    </>
                 )}
+                    
                 <div>
                     <b>表</b>:
                     <ul>

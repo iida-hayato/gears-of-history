@@ -16,7 +16,7 @@ import {
   policyMoveAndCountSkips,
   recomputeLaborAndEnforceFreeLeaders,
   computeRoundTurnOrderByRing,
-  recomputePersistentProduction
+  recomputePersistentProduction, applyCardEffects
 } from './logic';
 import {baseTechDeck, initialTechDeck, samplePolicies, sampleWondersByEra} from './cards';
 
@@ -241,10 +241,14 @@ export const GearsOfHistory: Game<GState> = {
           const p = G.players[playerID!];
           const kind = G.cardById[cardID]?.kind;
           if (kind === 'Wonder') return; // 7不思議は裏面不可
+          let changed = false;
           let i = p.built.indexOf(cardID);
-          if (i >= 0) { p.built.splice(i,1); p.builtFaceDown.push(cardID); return; }
-          i = p.builtFaceDown.indexOf(cardID);
-          if (i >= 0) { p.builtFaceDown.splice(i,1); p.built.push(cardID); return; }
+          if (i >= 0) { p.built.splice(i,1); p.builtFaceDown.push(cardID); changed = true; }
+          else {
+            i = p.builtFaceDown.indexOf(cardID);
+            if (i >= 0) { p.builtFaceDown.splice(i,1); p.built.push(cardID); changed = true; }
+          }
+          if (!changed) return; // （見つからない時は無視 / INVALID_MOVEでもOK）
           recomputePersistentProduction(G, p);
           recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
         },

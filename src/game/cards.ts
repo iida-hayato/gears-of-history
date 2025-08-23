@@ -102,7 +102,11 @@ export const governmentTechDeck = (): TechCard[] => [
 
 // N枚のコピーを作る
 function copies(t: TechCard, n: number): TechCard[] {
-  return Array.from({ length: n }, (_, i) => ({ ...t }));
+    return Array.from({ length: n }, (_, i) => ({
+        ...t,
+        id: `${t.id}#${i + 1}`,         // ← 一意なIDに
+        templateId: t.id,               // ← 元のテンプレIDを保持しておくと便利
+    }));
 }
 
 export const baseTechDeck = (): TechCard[] => [

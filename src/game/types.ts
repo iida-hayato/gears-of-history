@@ -161,3 +161,8 @@ export const foodByPlayer = (p: PlayerState): number =>
 export const laborRequiredByPlayer = (p: PlayerState): number =>
     p.labor.required - p.labor.reduction ;
     
+export const persistentAvailableLeaderByPlayer = (p: PlayerState): number =>
+    p.totalLeaders - 1 - laborRequiredByPlayer(p);
+
+export const persistentAvailableCostByPlayer = (p: PlayerState): number =>
+    Math.max(0, Math.min(gearByPlayer(p), foodByPlayer(p)));

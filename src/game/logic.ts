@@ -136,6 +136,8 @@ export function computeRoundTurnOrderByRing(G: GState): PlayerID[] {
 export function recomputePersistentProduction(G: GState, p: PlayerState) {
       let gear = 0;
       let food = 0;
+      let laborReq = 0;
+      let laborReduce = 0;
 
     for (const id of p.built) {
         const c = G.cardById[id] as AnyCard | undefined;
@@ -144,9 +146,13 @@ export function recomputePersistentProduction(G: GState, p: PlayerState) {
             if (ef.scope === 'persistent') {
                 if (ef.tag === 'gearDelta') gear += ef.amount ?? 0;
                 if (ef.tag === 'foodDelta') food += ef.amount ?? 0;
+                if (ef.tag === 'laborReqDelta') laborReq += ef.amount ?? 0;
+                if (ef.tag === 'laborReduceDelta') laborReduce += ef.amount ?? 0
             }
         }
     }
     p.base.gear = Math.max(0, gear);
     p.base.food = Math.max(0, food);
+    p.labor.required = Math.max(0, laborReq);
+    p.labor.reduction = Math.max(0, laborReduce);
 }

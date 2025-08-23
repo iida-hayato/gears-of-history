@@ -26,7 +26,7 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
     return (
         <div style={{padding: 16, fontFamily: 'system-ui, sans-serif'}}>
             <section>
-                <h3>政策リング（ラウンド:{G.round}）</h3>
+                <h3>政策リング（ラウンド:{G.round}/10）</h3>
                 <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8}}>
                     {(() => {
                         const n = G.ring.policyDeck.length;

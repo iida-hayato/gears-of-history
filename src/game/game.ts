@@ -1,5 +1,4 @@
 import type { Game } from 'boardgame.io';
-import {INVALID_MOVE, TurnOrder} from 'boardgame.io/core';
 import {
   GState,
   PlayerID,
@@ -135,14 +134,17 @@ export const GearsOfHistory: Game<GState> = {
         inventType: ({ G, playerID, events }, t: BuildType) => {
           const pid = playerID!;
           const remain = G._inventRemaining[pid] ?? 0;
-          if (remain <= 0) return INVALID_MOVE;
+          if (remain <= 0) return;
           const card = drawNextTechOfType(G, t);
-          if (!card) return INVALID_MOVE;
+          if (!card) return;
           G.market.techMarket.push(card);
           // 同タイプ内の見た目順：UIがグルーピングするが、全体でも安定化
           G.market.techMarket.sort(sortTechForMarket);
           G._inventRemaining[pid] = remain - 1;
           if (remain - 1 <= 0) return events.endTurn();
+        },
+        endInventionTurn: ({ G, playerID, events }) => {
+          if ((G._inventRemaining[playerID!] ?? 0) <= 0) events.endTurn();
         },
       },
       onBegin: ({ G }) => {
@@ -177,12 +179,12 @@ export const GearsOfHistory: Game<GState> = {
       moves: {
         buildFromMarket: ({ G, playerID }, cardID: string) => {
           const pid = playerID!;
-          if ((G._buildRemaining[pid] ?? 0) <= 0) return INVALID_MOVE;
+          if ((G._buildRemaining[pid] ?? 0) <= 0) return;
           const p = G.players[pid];
           const idx = G.market.techMarket.findIndex(c => c.id === cardID);
-          if (idx < 0) return INVALID_MOVE;
+          if (idx < 0) return;
           const card = G.market.techMarket[idx];
-          if ((G._buildBudget[pid] ?? 0) < card.cost) return INVALID_MOVE; // 残コスト不足
+          if ((G._buildBudget[pid] ?? 0) < card.cost) return; // 残コスト不足
           p.pendingBuilt.push(card.id);
           G.market.techMarket.splice(idx, 1);
           G._buildRemaining[pid]--;
@@ -190,13 +192,13 @@ export const GearsOfHistory: Game<GState> = {
         },
         buildWonderFromMarket: ({ G, playerID }, cardID: string) => {
           const pid = playerID!;
-          if ((G._buildRemaining[pid] ?? 0) <= 0) return INVALID_MOVE;
+          if ((G._buildRemaining[pid] ?? 0) <= 0) return;
           const p = G.players[pid];
           const idx = G.market.wonderMarket.findIndex(c => c.id === cardID);
-          if (idx < 0) return INVALID_MOVE;
+          if (idx < 0) return;
           const card = G.market.wonderMarket[idx];
-          if ((G._buildBudget[pid] ?? 0) < card.cost) return INVALID_MOVE;
-          if (hasWonderInEra(G, pid, (card as any).era)) return INVALID_MOVE;
+          if ((G._buildBudget[pid] ?? 0) < card.cost) return;
+          if (hasWonderInEra(G, pid, (card as any).era)) return;
           p.pendingBuilt.push(card.id);
           G.market.wonderMarket.splice(idx, 1);
           G._buildRemaining[pid]--;
@@ -204,15 +206,15 @@ export const GearsOfHistory: Game<GState> = {
         },
         demolish: ({ G, playerID }, cardID: string) => {
           const pid = playerID!;
-          if ((G._buildRemaining[pid] ?? 0) <= 0) return INVALID_MOVE;
+          if ((G._buildRemaining[pid] ?? 0) <= 0) return;
           const p = G.players[pid];
           const kind = G.cardById[cardID]?.kind;
-          if (kind === 'Wonder') return INVALID_MOVE;
+          if (kind === 'Wonder') return;
           let i = p.built.indexOf(cardID);
           if (i >= 0) { p.built.splice(i, 1); G._buildRemaining[pid]--; return; }
           i = p.builtFaceDown.indexOf(cardID);
           if (i >= 0) { p.builtFaceDown.splice(i, 1); G._buildRemaining[pid]--; return; }
-          return INVALID_MOVE;
+          return;
         },
         endBuildTurn: ({ G, playerID, events }) => {
           G._buildRemaining[playerID!] = 0;

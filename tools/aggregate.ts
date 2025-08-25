@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync, mkdirSync, writeFileSync, statSync } from 'fs';
 import { join } from 'path';
 
-interface SingleGameMetrics { playerVP: number[]; winnerIds: string[]; players: number; actionTagHistogram: Record<string, number>; firstPlayerId: string; }
+interface GameMetricsLike { playerVP?: number[]; winnerIds?: string[]; players?: number; actionTagHistogram?: Record<string, number>; seed?: number; }
 
 function latestRunFile(): string | null {
   try {
@@ -20,38 +20,68 @@ function parseArgs() {
   return out;
 }
 
-function loadLines(path: string): SingleGameMetrics[] {
-  const raw = readFileSync(path,'utf-8').trim().split(/\n+/).filter(Boolean);
-  return raw.map(l => JSON.parse(l));
+function loadLines(path: string): any[] {
+  const raw = readFileSync(path,'utf-8').split(/\n+/).filter(Boolean);
+  return raw.map(l => { try { return JSON.parse(l); } catch { return null; } });
 }
 
-function aggregate(ms: SingleGameMetrics[]) {
-  if (!ms.length) throw new Error('no metrics');
-  const players = ms[0].players;
-  const games = ms.length;
-  const sumVP = Array(players).fill(0);
-  const sumVP2 = Array(players).fill(0);
-  const wins = Array(players).fill(0);
+function aggregate(lines: any[]) {
+  let players = 0;
+  let sumVP: number[] = [];
+  let sumVP2: number[] = [];
+  let wins: number[] = [];
   const actionHist: Record<string, number> = {};
   let minSeed = Infinity;
-  for (const g of ms) {
-    // @ts-ignore seed フィールド存在 (型補完簡略)
-    const seed = (g as any).seed as number | undefined;
-    if (typeof seed === 'number' && seed < minSeed) minSeed = seed;
-    g.playerVP.forEach((v,i) => { sumVP[i]+=v; sumVP2[i]+=v*v; });
-    g.winnerIds.forEach(id => { const idx = +id; if (!isNaN(idx)) wins[idx] += 1; });
-    for (const [k,v] of Object.entries(g.actionTagHistogram)) actionHist[k] = (actionHist[k] ?? 0) + v;
+  let valid = 0;
+  let skipped = 0;
+
+  for (const raw of lines) {
+    if (!raw) { skipped++; continue; }
+    // 新/旧ログ形式対応: metrics ネストがあればそれを利用
+    const candidate: GameMetricsLike = raw.metrics && typeof raw.metrics === 'object' ? raw.metrics : raw;
+    const pvp = candidate.playerVP;
+    if (!Array.isArray(pvp) || pvp.length === 0) { skipped++; continue; }
+    if (players === 0) {
+      players = pvp.length;
+      sumVP = Array(players).fill(0);
+      sumVP2 = Array(players).fill(0);
+      wins = Array(players).fill(0);
+    }
+    if (pvp.length !== players) { skipped++; continue; }
+
+    pvp.forEach((v,i) => { sumVP[i]+=v; sumVP2[i]+=v*v; });
+    if (Array.isArray(candidate.winnerIds)) {
+      for (const id of candidate.winnerIds) {
+        const idx = Number(id);
+        if (!Number.isNaN(idx) && idx >=0 && idx < players) wins[idx] += 1;
+      }
+    }
+    if (candidate.actionTagHistogram) {
+      for (const [k,v] of Object.entries(candidate.actionTagHistogram)) {
+        if (typeof v === 'number') actionHist[k] = (actionHist[k] ?? 0) + v;
+      }
+    }
+    if (typeof candidate.seed === 'number' && candidate.seed < minSeed) minSeed = candidate.seed;
+    valid++;
   }
-  const avgVP = sumVP.map(s => s/games);
-  const vpVar = sumVP.map((_,i) => (sumVP2[i]/games) - avgVP[i]*avgVP[i]);
-  const winRate = wins.map(w => w/games);
+
+  if (valid === 0) throw new Error('no valid metrics lines (skipped=' + skipped + ')');
+  const avgVP = sumVP.map(v => v/valid);
+  const vpVar = sumVP.map((_,i) => (sumVP2[i]/valid) - avgVP[i]*avgVP[i]);
+  const winRate = wins.map(w => w/valid);
   const firstPlayerWinRate = winRate[0] ?? 0;
-  const summary = {
-    games, players, seedBase: (minSeed===Infinity?undefined:minSeed), avgVP, vpVar, winRate, firstPlayerWinRate,
+  return {
+    games: valid,
+    skipped,
+    players,
+    seedBase: (minSeed===Infinity?undefined:minSeed),
+    avgVP,
+    vpVar,
+    winRate,
+    firstPlayerWinRate,
     actionTagHistogram: actionHist,
     generatedAt: new Date().toISOString(),
   };
-  return summary;
 }
 
 function stamp() { const d=new Date(); const p=(n:number)=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
@@ -60,8 +90,8 @@ function main() {
   const args = parseArgs();
   const file = args.file || latestRunFile();
   if (!file) throw new Error('log file not found');
-  const ms = loadLines(file);
-  const summary = aggregate(ms);
+  const lines = loadLines(file);
+  const summary = aggregate(lines);
   try { mkdirSync('metrics'); } catch {}
   const outPath = `metrics/summary-${stamp()}.json`;
   writeFileSync(outPath, JSON.stringify(summary, null, 2));

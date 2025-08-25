@@ -6,10 +6,10 @@ import { RandomAgent } from '../ai/RandomAgent';
 import { IAgent } from '../ai/IAgent';
 import { createRng } from './rng';
 import { setCardsRng } from '../game/cards';
-import { buildGameMetrics, SingleGameMetrics } from '../metrics/buildGameMetrics';
+import { buildGameMetrics, ExtendedGameMetrics } from '../metrics/buildGameMetrics';
 
 export interface RunGameParams { seed: number; players: number; AgentClass?: new(id: string)=>IAgent; }
-export interface RunGameResult { finalState: any; metrics: SingleGameMetrics; durationMs: number; }
+export interface RunGameResult { finalState: any; metrics: ExtendedGameMetrics; durationMs: number; }
 
 /**
  * runGame
@@ -54,7 +54,8 @@ export function runGame({ seed, players, AgentClass = RandomAgent }: RunGamePara
   if (safety <= 0) throw new Error('loopGuardExceeded');
   const finalState: any = client.getState();
   if (!finalState?.ctx?.gameover) throw new Error('notFinished');
-  const metrics = buildGameMetrics(finalState.G, seed, {}); // histogram は P0 空
+  const histogram = finalState.G?._metrics?.actionTagHistogram ?? {};
+  const metrics = buildGameMetrics(finalState.G, seed, histogram);
   if (metrics.playerVP.length !== players) throw new Error('vpLengthMismatch');
   const t1 = performance.now();
   return { finalState, metrics, durationMs: +(t1 - t0).toFixed(3) };

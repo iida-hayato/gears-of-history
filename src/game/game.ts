@@ -18,6 +18,7 @@ import {
   recomputePersistentProduction, applyCardEffects
 } from './logic';
 import {baseTechDeck, initialTechDeck, samplePolicies, sampleWondersByEra} from './cards';
+import { totalVP } from './types';
 
 export const GearsOfHistory: Game<GState> = {
   name: 'GearsOfHistory',
@@ -71,6 +72,14 @@ export const GearsOfHistory: Game<GState> = {
       _buildRemaining: Object.fromEntries(order.map(id => [id, 0])),
       _buildBudget:   Object.fromEntries(order.map(id => [id, 0])),
       seed,
+      _metrics: {
+        actionTagHistogram: { policy:0, invention:0, build:0, cleanup:0, internal:0 },
+        perRoundVP: [],
+        perRoundBuildCounts: [],
+        perRoundGears: [],
+        perRoundFood: [],
+        _prevBuiltCounts: order.map(pid => players[pid].built.length + players[pid].builtFaceDown.length),
+      }
     };
   },
 
@@ -94,6 +103,7 @@ export const GearsOfHistory: Game<GState> = {
       },
       moves: {
         investAndMove: ({G, ctx, playerID, events}, steps: number) => {
+          G._metrics && (G._metrics.actionTagHistogram.policy++);
           const p = G.players[playerID!];
           const s = Math.max(1, Math.floor(steps));
           const max = freeLeadersAvailable(p);
@@ -103,6 +113,7 @@ export const GearsOfHistory: Game<GState> = {
           events.endTurn();
         },
         endPolicyTurn: ({G, events}) => {
+          G._metrics && (G._metrics.actionTagHistogram.policy++);
           events.endTurn();
         },
       },
@@ -134,6 +145,7 @@ export const GearsOfHistory: Game<GState> = {
       moves: {
         // タイプを指定して公開（1回=1枚）
         inventType: ({ G, playerID, events }, t: BuildType) => {
+          G._metrics && (G._metrics.actionTagHistogram.invention++);
           const pid = playerID!;
           const remain = G._inventRemaining[pid] ?? 0;
           if (remain <= 0) return;
@@ -146,7 +158,7 @@ export const GearsOfHistory: Game<GState> = {
           if (remain - 1 <= 0) return events.endTurn();
         },
         endInventionTurn: ({ G, playerID, events }) => {
-          if ((G._inventRemaining[playerID!] ?? 0) <= 0) events.endTurn();
+          if ((G._inventRemaining[playerID!] ?? 0) <= 0) { G._metrics && (G._metrics.actionTagHistogram.invention++); events.endTurn(); }
         },
       },
       onBegin: ({ G }) => {
@@ -180,6 +192,7 @@ export const GearsOfHistory: Game<GState> = {
       },
       moves: {
         buildFromMarket: ({ G, playerID }, cardID: string) => {
+          G._metrics && (G._metrics.actionTagHistogram.build++);
           const pid = playerID!;
           if ((G._buildRemaining[pid] ?? 0) <= 0) return;
           const p = G.players[pid];
@@ -193,6 +206,7 @@ export const GearsOfHistory: Game<GState> = {
           G._buildBudget[pid] = Math.max(0, (G._buildBudget[pid] ?? 0) - card.cost); // ← 消費
         },
         buildWonderFromMarket: ({ G, playerID }, cardID: string) => {
+          G._metrics && (G._metrics.actionTagHistogram.build++);
           const pid = playerID!;
           if ((G._buildRemaining[pid] ?? 0) <= 0) return;
           const p = G.players[pid];
@@ -207,6 +221,7 @@ export const GearsOfHistory: Game<GState> = {
           G._buildBudget[pid] = Math.max(0, (G._buildBudget[pid] ?? 0) - card.cost);
         },
         demolish: ({ G, playerID }, cardID: string) => {
+          G._metrics && (G._metrics.actionTagHistogram.build++);
           const pid = playerID!;
           if ((G._buildRemaining[pid] ?? 0) <= 0) return;
           const p = G.players[pid];
@@ -219,6 +234,7 @@ export const GearsOfHistory: Game<GState> = {
           return;
         },
         endBuildTurn: ({ G, playerID, events }) => {
+          G._metrics && (G._metrics.actionTagHistogram.build++);
           G._buildRemaining[playerID!] = 0;
           events.endTurn();
         },
@@ -243,6 +259,7 @@ export const GearsOfHistory: Game<GState> = {
       },
       moves: {
         toggleFace: ({ G, playerID }, cardID: string) => {
+          G._metrics && (G._metrics.actionTagHistogram.cleanup++);
           const p = G.players[playerID!];
           const kind = G.cardById[cardID]?.kind;
           if (kind === 'Wonder') return; // 7不思議は裏面不可
@@ -258,6 +275,7 @@ export const GearsOfHistory: Game<GState> = {
           recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
         },
         finalizeCleanup: ({ G, playerID, events }) => {
+          G._metrics && (G._metrics.actionTagHistogram.cleanup++);
           const p = G.players[playerID!];           // ← 現在手番のみ
           while (p.pendingBuilt.length > 0 && p.built.length < G.maxBuildSlots) {
             const cid = p.pendingBuilt.shift()!;
@@ -269,6 +287,17 @@ export const GearsOfHistory: Game<GState> = {
         },
       },
       onEnd: ({ G }) => {
+        // ラウンドスナップショット収集 (advance 前)
+        if (G._metrics) {
+          const vpRow = G.order.map(pid => totalVP(G.players[pid], G.cardById));
+          const builtCounts = G.order.map(pid => G.players[pid].built.length + G.players[pid].builtFaceDown.length);
+          const builtDelta = builtCounts.map((c,i) => c - (G._metrics!._prevBuiltCounts[i] ?? 0));
+          G._metrics.perRoundVP.push(vpRow);
+          G._metrics.perRoundBuildCounts.push(builtDelta);
+          G._metrics.perRoundGears.push(G.order.map(pid => G.players[pid].base.gear));
+          G._metrics.perRoundFood.push(G.order.map(pid => G.players[pid].base.food));
+          G._metrics._prevBuiltCounts = builtCounts;
+        }
         // 市場の回転とラウンド進行
         advanceRoundAndRotateMarkets(G);
 

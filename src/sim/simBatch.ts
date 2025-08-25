@@ -7,17 +7,19 @@ import { appendFileSync, existsSync } from 'fs';
 import { runBatch } from './BatchRunner';
 import { runGame } from './GameRunner';
 import { performance } from 'perf_hooks';
+import { HeuristicAgent } from '../ai/HeuristicAgent';
+import { RandomAgent } from '../ai/RandomAgent';
 
-interface Args { games: number; seedBase: number; players: number; }
+interface Args { games: number; seedBase: number; players: number; agent: string; }
 
 function parseArgs(): Args {
   const a = process.argv.slice(2);
-  const out: any = { games: 10, seedBase: 1000, players: 4 };
+  const out: any = { games: 10, seedBase: 1000, players: 4, agent: 'heuristic' };
   for (let i = 0; i < a.length; i++) {
     if (a[i].startsWith('--')) {
       const key = a[i].slice(2);
       const val = a[i + 1];
-      if (val && !val.startsWith('--')) { out[key] = Number(val); i++; }
+      if (val && !val.startsWith('--')) { out[key] = isNaN(Number(val)) ? val : Number(val); i++; }
       else { out[key] = true; }
     }
   }
@@ -43,7 +45,8 @@ async function main() {
       const seed = args.seedBase + i;
       const gStart = performance.now();
       try {
-        const r = runGame({ seed, players: args.players });
+        const AgentClass = (args.agent?.toLowerCase() === 'random') ? RandomAgent : HeuristicAgent;
+        const r = runGame({ seed, players: args.players, AgentClass });
         const line = { gameId: i, seed, players: args.players, metrics: r.metrics, durationMs: r.durationMs };
         appendFileSync(path, JSON.stringify(line) + '\n');
         count++;

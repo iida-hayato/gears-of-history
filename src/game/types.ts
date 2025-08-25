@@ -140,6 +140,8 @@ export interface GState {
     perRoundBuildCounts: number[][];
     perRoundGears: number[][];
     perRoundFood: number[][];
+    perRoundFreeLeaders?: number[][];
+    perRoundAvailableCost?: number[][];
     _prevBuiltCounts: number[]; // 内部計算用
   };
 }

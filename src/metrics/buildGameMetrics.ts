@@ -27,6 +27,8 @@ export interface ExtendedGameMetrics extends SingleGameMetrics {
   perRoundBuildCounts: number[][];
   perRoundGears: number[][];
   perRoundFood: number[][];
+  perRoundFreeLeaders?: number[][]; // 追加: ラウンド別フリー指導者数
+  perRoundAvailableCost?: number[][]; // 追加: ラウンド別利用可能コスト
   snapshotHash: string;
 }
 
@@ -46,6 +48,8 @@ export function buildGameMetrics(G: GState, seed: number, actionHistogram: Recor
   const perRoundBuildCounts = G._metrics?.perRoundBuildCounts ? [...G._metrics.perRoundBuildCounts] : [];
   const perRoundGears = G._metrics?.perRoundGears ? [...G._metrics.perRoundGears] : [];
   const perRoundFood = G._metrics?.perRoundFood ? [...G._metrics.perRoundFood] : [];
+  const perRoundFreeLeaders = G._metrics?.perRoundFreeLeaders ? [...G._metrics.perRoundFreeLeaders] : undefined;
+  const perRoundAvailableCost = G._metrics?.perRoundAvailableCost ? [...G._metrics.perRoundAvailableCost] : undefined;
   if (perRoundVP.length && perRoundVP[perRoundVP.length - 1].length === playerVP.length) {
     const last = perRoundVP[perRoundVP.length - 1];
     // 最終行と playerVP が一致しない場合は playerVP を優先（設計上は一致するはず）
@@ -66,11 +70,13 @@ export function buildGameMetrics(G: GState, seed: number, actionHistogram: Recor
     wonderCount,
     actionTagHistogram: { ...actionHistogram },
     schemaVersion: METRICS_SCHEMA_VERSION,
-    engineVersion: (pkg?.version ?? '0.0.0'),
+    engineVersion: ((pkg as any)?.version ?? '0.0.0'),
     perRoundVP,
     perRoundBuildCounts,
     perRoundGears,
     perRoundFood,
+    perRoundFreeLeaders,
+    perRoundAvailableCost,
     snapshotHash,
   };
 }

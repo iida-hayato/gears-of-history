@@ -21,7 +21,7 @@ const BGClient = Client({
 export default function App() {
     const isDashboard = url.searchParams.has('dashboard');
     if (isDashboard) {
-        const [path, setPath] = React.useState('/metrics/summary-latest.json');
+        const [path, setPath] = React.useState('metrics/summary-latest.json');
         return (
           <div style={{padding:16}}>
             <h1 style={{marginTop:0}}>Gears Metrics</h1>

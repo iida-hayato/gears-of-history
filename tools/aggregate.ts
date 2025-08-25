@@ -37,7 +37,16 @@ function aggregate(lines: any[]) {
   // ラウンド別集計（平均算出用）
   let perRoundVPSums: number[][] = []; // [round][player]
   let perRoundBuildSums: number[][] = [];
-  let perRoundCounts = 0; // ゲーム数（ラウンド配列統合に利用）
+  let perRoundGearSums: number[][] = [];
+  let perRoundFoodSums: number[][] = [];
+  let perRoundFreeLeaderSums: number[][] = [];
+  let perRoundAvailCostSums: number[][] = [];
+  let perRoundCounts = 0; // VP 配列を持つゲーム数
+  let perRoundBuildCountsN = 0;
+  let perRoundGearCounts = 0;
+  let perRoundFoodCounts = 0;
+  let perRoundFreeLeaderCounts = 0;
+  let perRoundAvailCostCounts = 0;
 
   for (const raw of lines) {
     if (!raw) { skipped++; continue; }
@@ -77,6 +86,7 @@ function aggregate(lines: any[]) {
           for (let i = 0; i < Math.min(players, row.length); i++) perRoundVPSums[r][i] += row[i];
         }
       }
+      perRoundCounts++;
     }
     if (Array.isArray((candidate as any).perRoundBuildCounts)) {
       const rounds: number[][] = (candidate as any).perRoundBuildCounts;
@@ -87,9 +97,44 @@ function aggregate(lines: any[]) {
           for (let i = 0; i < Math.min(players, row.length); i++) perRoundBuildSums[r][i] += row[i];
         }
       }
+      perRoundBuildCountsN++;
     }
-    // perRound 系は Extended ゲームを一つでも含む場合のみ平均を出すのでカウンタ更新
-    if (Array.isArray((candidate as any).perRoundVP)) perRoundCounts++;
+    if (Array.isArray((candidate as any).perRoundGears)) {
+      const rounds: number[][] = (candidate as any).perRoundGears;
+      for (let r = 0; r < rounds.length; r++) {
+        if (!Array.isArray(perRoundGearSums[r])) perRoundGearSums[r] = Array(players).fill(0);
+        const row = rounds[r];
+        if (Array.isArray(row)) for (let i = 0; i < Math.min(players, row.length); i++) perRoundGearSums[r][i] += row[i];
+      }
+      perRoundGearCounts++;
+    }
+    if (Array.isArray((candidate as any).perRoundFood)) {
+      const rounds: number[][] = (candidate as any).perRoundFood;
+      for (let r = 0; r < rounds.length; r++) {
+        if (!Array.isArray(perRoundFoodSums[r])) perRoundFoodSums[r] = Array(players).fill(0);
+        const row = rounds[r];
+        if (Array.isArray(row)) for (let i = 0; i < Math.min(players, row.length); i++) perRoundFoodSums[r][i] += row[i];
+      }
+      perRoundFoodCounts++;
+    }
+    if (Array.isArray((candidate as any).perRoundFreeLeaders)) {
+      const rounds: number[][] = (candidate as any).perRoundFreeLeaders;
+      for (let r = 0; r < rounds.length; r++) {
+        if (!Array.isArray(perRoundFreeLeaderSums[r])) perRoundFreeLeaderSums[r] = Array(players).fill(0);
+        const row = rounds[r];
+        if (Array.isArray(row)) for (let i = 0; i < Math.min(players, row.length); i++) perRoundFreeLeaderSums[r][i] += row[i];
+      }
+      perRoundFreeLeaderCounts++;
+    }
+    if (Array.isArray((candidate as any).perRoundAvailableCost)) {
+      const rounds: number[][] = (candidate as any).perRoundAvailableCost;
+      for (let r = 0; r < rounds.length; r++) {
+        if (!Array.isArray(perRoundAvailCostSums[r])) perRoundAvailCostSums[r] = Array(players).fill(0);
+        const row = rounds[r];
+        if (Array.isArray(row)) for (let i = 0; i < Math.min(players, row.length); i++) perRoundAvailCostSums[r][i] += row[i];
+      }
+      perRoundAvailCostCounts++;
+    }
 
     valid++;
   }
@@ -103,10 +148,16 @@ function aggregate(lines: any[]) {
   // 平均ラウンド配列（Extendedがあった場合のみ）
   let perRoundVPAvg: number[][] | undefined;
   let perRoundBuildAvg: number[][] | undefined;
-  if (perRoundCounts > 0) {
-    perRoundVPAvg = perRoundVPSums.map(row => row.map(v => v / perRoundCounts));
-    perRoundBuildAvg = perRoundBuildSums.map(row => row.map(v => v / perRoundCounts));
-  }
+  let perRoundGearsAvg: number[][] | undefined;
+  let perRoundFoodAvg: number[][] | undefined;
+  let perRoundFreeLeadersAvg: number[][] | undefined;
+  let perRoundAvailableCostAvg: number[][] | undefined;
+  if (perRoundCounts > 0) perRoundVPAvg = perRoundVPSums.map(row => row.map(v => v / perRoundCounts));
+  if (perRoundBuildCountsN > 0) perRoundBuildAvg = perRoundBuildSums.map(row => row.map(v => v / perRoundBuildCountsN));
+  if (perRoundGearCounts > 0) perRoundGearsAvg = perRoundGearSums.map(row => row.map(v => v / perRoundGearCounts));
+  if (perRoundFoodCounts > 0) perRoundFoodAvg = perRoundFoodSums.map(row => row.map(v => v / perRoundFoodCounts));
+  if (perRoundFreeLeaderCounts > 0) perRoundFreeLeadersAvg = perRoundFreeLeaderSums.map(row => row.map(v => v / perRoundFreeLeaderCounts));
+  if (perRoundAvailCostCounts > 0) perRoundAvailableCostAvg = perRoundAvailCostSums.map(row => row.map(v => v / perRoundAvailCostCounts));
 
   return {
     games: valid,
@@ -120,6 +171,10 @@ function aggregate(lines: any[]) {
     actionTagHistogram: actionHist,
     perRoundVP: perRoundVPAvg,               // 追加
     perRoundBuildCounts: perRoundBuildAvg,    // 追加
+    perRoundGears: perRoundGearsAvg,          // 追加
+    perRoundFood: perRoundFoodAvg,            // 追加
+    perRoundFreeLeaders: perRoundFreeLeadersAvg, // 追加
+    perRoundAvailableCost: perRoundAvailableCostAvg, // 追加
     generatedAt: new Date().toISOString(),
   };
 }

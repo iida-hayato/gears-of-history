@@ -78,6 +78,8 @@ export const GearsOfHistory: Game<GState> = {
         perRoundBuildCounts: [],
         perRoundGears: [],
         perRoundFood: [],
+        perRoundFreeLeaders: [],
+        perRoundAvailableCost: [],
         _prevBuiltCounts: order.map(pid => players[pid].built.length + players[pid].builtFaceDown.length),
       }
     };
@@ -296,6 +298,8 @@ export const GearsOfHistory: Game<GState> = {
           G._metrics.perRoundBuildCounts.push(builtDelta);
           G._metrics.perRoundGears.push(G.order.map(pid => G.players[pid].base.gear));
           G._metrics.perRoundFood.push(G.order.map(pid => G.players[pid].base.food));
+          G._metrics.perRoundFreeLeaders?.push(G.order.map(pid => freeLeadersAvailable(G.players[pid])));
+          G._metrics.perRoundAvailableCost?.push(G.order.map(pid => availableCost(G.players[pid])));
           G._metrics._prevBuiltCounts = builtCounts;
         }
         // 市場の回転とラウンド進行

@@ -21,7 +21,8 @@ import {baseTechDeck, initialTechDeck, samplePolicies, sampleWondersByEra} from 
 
 export const GearsOfHistory: Game<GState> = {
   name: 'GearsOfHistory',
-  setup: ({ ctx }): GState => {
+  setup: ({ ctx }, setupData): GState => {
+    const seed = (setupData as any)?.seed as number | undefined;
     const order = Array.from({ length: ctx.numPlayers }, (_, i) => String(i));
     const players = initPlayers(order);
 
@@ -69,6 +70,7 @@ export const GearsOfHistory: Game<GState> = {
       _inventRemaining: Object.fromEntries(order.map(id => [id, 0])),
       _buildRemaining: Object.fromEntries(order.map(id => [id, 0])),
       _buildBudget:   Object.fromEntries(order.map(id => [id, 0])),
+      seed,
     };
   },
 

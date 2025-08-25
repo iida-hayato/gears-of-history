@@ -13,7 +13,7 @@ export interface SingleGameMetrics {
   actionTagHistogram: Record<string, number>; // build / invent / policyMove など
 }
 
-export function buildGameMetrics(G: GState, seed: number, actionHistogram: Record<string, number>): SingleGameMetrics {
+export function buildGameMetrics(G: GState, seed: number, actionHistogram: Record<string, number> = {}): SingleGameMetrics {
   const order = G.order;
   const playerVP = order.map(pid => totalVP(G.players[pid], G.cardById as Record<string, AnyCard>));
   const maxVP = Math.max(...playerVP);
@@ -36,4 +36,3 @@ export function buildGameMetrics(G: GState, seed: number, actionHistogram: Recor
     actionTagHistogram: { ...actionHistogram },
   };
 }
-

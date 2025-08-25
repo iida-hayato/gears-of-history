@@ -109,6 +109,8 @@ export interface RingState {
   startMarkerIndex: number; // スタートコマの位置（カードインデックス）
 }
 
+export type SimulationSeed = number;
+
 export interface GState {
   players: Record<PlayerID, PlayerState>;
   order: PlayerID[];            // プレイヤーID順（固定）
@@ -122,6 +124,7 @@ export interface GState {
   _inventRemaining: Record<PlayerID, number>;  // 発明フェイズの残回数
   _buildRemaining: Record<PlayerID, number>; // 建築フェイズの残回数
   _buildBudget: Record<PlayerID, number>; // ← このラウンドの残り“利用可能コスト”
+  seed?: SimulationSeed; // ← シミュレーション用シード保持
 }
 
 export type MoveCtx = {

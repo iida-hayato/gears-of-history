@@ -21,3 +21,4 @@ export function rngFromBase(seedBase: number, index: number): RNG {
   return mulberry32((seedBase + index) >>> 0);
 }
 
+export const createRng = (seed: number) => mulberry32(seed);

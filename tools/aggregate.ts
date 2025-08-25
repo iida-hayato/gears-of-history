@@ -34,10 +34,13 @@ function aggregate(lines: any[]) {
   let minSeed = Infinity;
   let valid = 0;
   let skipped = 0;
+  // ラウンド別集計（平均算出用）
+  let perRoundVPSums: number[][] = []; // [round][player]
+  let perRoundBuildSums: number[][] = [];
+  let perRoundCounts = 0; // ゲーム数（ラウンド配列統合に利用）
 
   for (const raw of lines) {
     if (!raw) { skipped++; continue; }
-    // 新/旧ログ形式対応: metrics ネストがあればそれを利用
     const candidate: GameMetricsLike = raw.metrics && typeof raw.metrics === 'object' ? raw.metrics : raw;
     const pvp = candidate.playerVP;
     if (!Array.isArray(pvp) || pvp.length === 0) { skipped++; continue; }
@@ -62,6 +65,32 @@ function aggregate(lines: any[]) {
       }
     }
     if (typeof candidate.seed === 'number' && candidate.seed < minSeed) minSeed = candidate.seed;
+
+    // ラウンド別 (Extended metrics のみ)
+    // candidate.perRoundVP: number[][]; candidate.perRoundBuildCounts: number[][]
+    if (Array.isArray((candidate as any).perRoundVP)) {
+      const rounds: number[][] = (candidate as any).perRoundVP;
+      for (let r = 0; r < rounds.length; r++) {
+        if (!Array.isArray(perRoundVPSums[r])) perRoundVPSums[r] = Array(players).fill(0);
+        const row = rounds[r];
+        if (Array.isArray(row)) {
+          for (let i = 0; i < Math.min(players, row.length); i++) perRoundVPSums[r][i] += row[i];
+        }
+      }
+    }
+    if (Array.isArray((candidate as any).perRoundBuildCounts)) {
+      const rounds: number[][] = (candidate as any).perRoundBuildCounts;
+      for (let r = 0; r < rounds.length; r++) {
+        if (!Array.isArray(perRoundBuildSums[r])) perRoundBuildSums[r] = Array(players).fill(0);
+        const row = rounds[r];
+        if (Array.isArray(row)) {
+          for (let i = 0; i < Math.min(players, row.length); i++) perRoundBuildSums[r][i] += row[i];
+        }
+      }
+    }
+    // perRound 系は Extended ゲームを一つでも含む場合のみ平均を出すのでカウンタ更新
+    if (Array.isArray((candidate as any).perRoundVP)) perRoundCounts++;
+
     valid++;
   }
 
@@ -70,6 +99,15 @@ function aggregate(lines: any[]) {
   const vpVar = sumVP.map((_,i) => (sumVP2[i]/valid) - avgVP[i]*avgVP[i]);
   const winRate = wins.map(w => w/valid);
   const firstPlayerWinRate = winRate[0] ?? 0;
+
+  // 平均ラウンド配列（Extendedがあった場合のみ）
+  let perRoundVPAvg: number[][] | undefined;
+  let perRoundBuildAvg: number[][] | undefined;
+  if (perRoundCounts > 0) {
+    perRoundVPAvg = perRoundVPSums.map(row => row.map(v => v / perRoundCounts));
+    perRoundBuildAvg = perRoundBuildSums.map(row => row.map(v => v / perRoundCounts));
+  }
+
   return {
     games: valid,
     skipped,
@@ -80,6 +118,8 @@ function aggregate(lines: any[]) {
     winRate,
     firstPlayerWinRate,
     actionTagHistogram: actionHist,
+    perRoundVP: perRoundVPAvg,               // 追加
+    perRoundBuildCounts: perRoundBuildAvg,    // 追加
     generatedAt: new Date().toISOString(),
   };
 }
@@ -95,6 +135,8 @@ function main() {
   try { mkdirSync('metrics'); } catch {}
   const outPath = `metrics/summary-${stamp()}.json`;
   writeFileSync(outPath, JSON.stringify(summary, null, 2));
+  // 最新リンクファイル
+  try { writeFileSync('metrics/summary-latest.json', JSON.stringify(summary, null, 2)); } catch {}
   console.log(JSON.stringify({ file: outPath, ...summary }));
 }
 

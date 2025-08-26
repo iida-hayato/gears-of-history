@@ -16,69 +16,84 @@ export class HeuristicAgent implements IAgent {
   constructor(id: PlayerID) { this.id = id; }
 
   actPolicy(state: GState, moves: any, ctx: AgentContext): void {
-    const p = state.players[this.id];
-    // 利用可能コマ (free leaders) = total - locked - 1(リング)
-    const free = Math.max(0, p.totalLeaders - p.lockedLeaders - 1);
-    if (free <= 0) { moves.endPolicyTurn?.(); return; }
-    const steps = 1 + Math.floor(ctx.rng() * free);
-    moves.investAndMove?.(steps);
+    try {
+      const p = state.players[this.id];
+      if (!p) { moves.endPolicyTurn?.(); return; }
+      const free = Math.max(0, p.totalLeaders - p.lockedLeaders - 1 - (p.policySpent ?? 0));
+      if (free <= 0) { moves.endPolicyTurn?.(); return; }
+      const investMax = Math.max(1, Math.floor(free * 0.6));
+      const steps = 1 + Math.floor(ctx.rng() * investMax);
+      moves.investAndMove?.(Math.min(steps, free));
+    } catch {/*noop*/}
   }
 
   actInvention(state: GState, moves: any, ctx: AgentContext): void {
-    let remain = state._inventRemaining[this.id] ?? 0;
-    if (remain <= 0) { moves.endInventionTurn?.(); return; }
-    // ループで残回数ゼロまで
-    while (remain > 0) {
-      const scarcity = this.rankBuildTypesByScarcity(state, ctx);
-      const chosen = scarcity[0] ?? 'Land';
-      moves.inventType?.(chosen);
-      // 推定で1減る想定
-      remain--;
-      if (remain <= 0) break;
-    }
+    try {
+      let remain = state._inventRemaining[this.id] ?? 0;
+      if (remain <= 0) { moves.endInventionTurn?.(); return; }
+      while (remain > 0) {
+        const order = this.rankBuildTypesByScarcity(state, ctx);
+        let acted = false;
+        for (const t of order) {
+          if (moves.inventType) { moves.inventType(t); acted = true; break; }
+        }
+        if (!acted) { moves.endInventionTurn?.(); return; }
+        remain--; if (remain <= 0) break;
+      }
+    } catch {/*noop*/}
   }
 
   actBuild(state: GState, moves: any, ctx: AgentContext): void {
-    // 残回数と budget が尽きるまで
-    let remain = state._buildRemaining[this.id] ?? 0;
-    if (remain <= 0) { moves.endBuildTurn?.(); return; }
-    while (remain > 0) {
-      const budget = state._buildBudget[this.id] ?? 0;
-      if (budget <= 0) { moves.endBuildTurn?.(); return; }
-      // Wonder 候補 ( era 未重複 )
-      const wonders = state.market.wonderMarket.filter(w => w.cost <= budget && !this.hasWonderEra(state, this.id, (w as any).era));
-      wonders.sort((a,b) => (b.vp / b.cost) - (a.vp / a.cost) || a.cost - b.cost || a.id.localeCompare(b.id));
-      if (wonders.length > 0) {
-        moves.buildWonderFromMarket?.(wonders[0].id);
+    try {
+      let remain = state._buildRemaining[this.id] ?? 0;
+      if (remain <= 0) { moves.endBuildTurn?.(); return; }
+      while (remain > 0) {
+        const budget = state._buildBudget[this.id] ?? 0;
+        if (budget <= 0) { moves.endBuildTurn?.(); return; }
+        const wonders = state.market.wonderMarket.filter(w => w.cost <= budget && !this.hasWonderEra(state, this.id, (w as any).era));
+        if (wonders.length > 0) {
+          wonders.sort((a,b) => (b.vp/Math.max(1,b.cost)) - (a.vp/Math.max(1,a.cost)) || b.vp - a.vp || a.cost - b.cost || a.id.localeCompare(b.id));
+          moves.buildWonderFromMarket?.(wonders[0].id);
+          remain--; continue;
+        }
+        const techs = state.market.techMarket.filter(t => t.cost <= budget);
+        if (techs.length === 0) { moves.endBuildTurn?.(); return; }
+        const scored = techs.map(c => ({ c, s: this.scoreTech(c as AnyCard, state, budget) }));
+        scored.sort((a,b) => b.s - a.s || a.c.cost - b.c.cost || a.c.id.localeCompare(b.c.id));
+        moves.buildFromMarket?.(scored[0].c.id);
         remain--;
-        continue;
       }
-      // Tech 候補
-      const techs = state.market.techMarket.filter(t => t.cost <= budget);
-      if (techs.length === 0) { moves.endBuildTurn?.(); return; }
-      techs.sort((a,b) => {
-        const ra = a.vp / Math.max(1,a.cost);
-        const rb = b.vp / Math.max(1,b.cost);
-        if (rb !== ra) return rb - ra;
-        if (a.cost !== b.cost) return a.cost - b.cost;
-        return a.id.localeCompare(b.id);
-      });
-      moves.buildFromMarket?.(techs[0].id);
-      remain--;
-    }
+    } catch {/*noop*/}
   }
 
   actCleanup(_state: GState, moves: any, _ctx: AgentContext): void {
-    moves.finalizeCleanup?.();
+    try { moves.finalizeCleanup?.(); } catch {/*noop*/}
   }
 
   private rankBuildTypesByScarcity(state: GState, ctx: AgentContext): BuildType[] {
+    const weights: Record<BuildType, number> = { Government:5, Infrastructure:4, ProdFacility:3, FoodFacility:2, Land:1 } as any;
     const counts: Record<BuildType, number> = { Land:0, FoodFacility:0, ProdFacility:0, Infrastructure:0, Government:0 };
-    for (const c of state.market.techMarket) {
-      const t = (c.buildType ?? 'Land') as BuildType;
-      counts[t] = (counts[t] ?? 0) + 1;
+    for (const c of state.market.techMarket) counts[c.buildType] = (counts[c.buildType] ?? 0) + 1;
+    const p = state.players[this.id];
+    for (const id of [...p.built, ...p.pendingBuilt]) {
+      const card = state.cardById[id];
+      if (card?.kind==='Tech') counts[(card as any).buildType as BuildType] += 1;
     }
-    return [...BUILD_TYPES].sort((a,b) => counts[a] - counts[b] || (ctx.rng()<0.5 ? -1:1));
+    return [...BUILD_TYPES].sort((a,b) => (counts[a]-counts[b]) || (weights[b]-weights[a]) || (ctx.rng()<0.5?-1:1));
+  }
+
+  private scoreTech(c: AnyCard, state: GState, budget: number): number {
+    let score = c.vp / Math.max(1, (c as any).cost ?? 1);
+    const p = state.players[this.id];
+    const gear = p.base.gear + p.roundDelta.gear;
+    const food = p.base.food + p.roundDelta.food;
+    const lacking: 'gear' | 'food' | null = gear === food ? null : (gear < food ? 'gear' : 'food');
+    if (lacking) {
+      const adds = (c.effects||[]).some(ef => ef.scope==='persistent' && ((lacking==='gear' && ef.tag==='gearDelta') || (lacking==='food' && ef.tag==='foodDelta')));
+      if (adds) score += 0.3;
+    }
+    if (c.cost <= Math.floor(budget/2)) score += 0.1;
+    return score;
   }
 
   private hasWonderEra(state: GState, pid: PlayerID, era: number): boolean {
@@ -87,4 +102,3 @@ export class HeuristicAgent implements IAgent {
     return all.some(id => (state.cardById[id] as AnyCard)?.kind === 'Wonder' && (state.cardById[id] as any).era === era);
   }
 }
-

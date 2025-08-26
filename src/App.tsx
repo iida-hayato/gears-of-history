@@ -8,16 +8,18 @@ import { MetricsDashboard } from './components/MetricsDashboard';
 const url = new URL(window.location.href);
 const enableDebug =
     url.searchParams.has('debug') ||
-    import.meta.env.MODE !== 'production';
+    (import.meta as any).env?.MODE !== 'production';
 const playerCount = 
     parseInt(url.searchParams.get('player') ?? "4");
 
+// Debug 有効時は ?debug=1 付与 (production 以外は常時有効)
 const BGClient = Client({
-    game: GearsOfHistory,
-    board: Board,
-    numPlayers: playerCount,
-    debug: enableDebug ? {impl: Debug} : false,
+  game: GearsOfHistory,
+  board: Board,
+  numPlayers: playerCount,
+  debug: enableDebug ? { impl: Debug } : false,
 })
+
 export default function App() {
     const isDashboard = url.searchParams.has('dashboard');
     if (isDashboard) {

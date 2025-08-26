@@ -339,9 +339,6 @@ export const GearsOfHistory: Game<GState> = {
   },
 
   endIf: ({ G }) => (G.round > 10 ? { winner: computeWinner(G) } : undefined),
-  ai: {
-    
-  }
 };
 
 function computeWinner(G: GState): { winnerIDs: PlayerID[]; scores: Record<PlayerID, number> } {

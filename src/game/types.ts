@@ -109,6 +109,17 @@ export interface RingState {
   startMarkerIndex: number; // スタートコマの位置（カードインデックス）
 }
 
+export type SimulationSeed = number;
+
+export type ActionTag = 'policy' | 'invention' | 'build' | 'cleanup' | 'internal';
+
+export interface RoundSnapshot {
+  vp: number[];              // 各プレイヤーVP
+  builtDelta: number[];      // 当ラウンド新規建築枚数
+  gears?: number[];          // ギア生産(永続 base.gear)
+  food?: number[];           // 食料生産(永続 base.food)
+}
+
 export interface GState {
   players: Record<PlayerID, PlayerState>;
   order: PlayerID[];            // プレイヤーID順（固定）
@@ -122,6 +133,18 @@ export interface GState {
   _inventRemaining: Record<PlayerID, number>;  // 発明フェイズの残回数
   _buildRemaining: Record<PlayerID, number>; // 建築フェイズの残回数
   _buildBudget: Record<PlayerID, number>; // ← このラウンドの残り“利用可能コスト”
+  seed?: SimulationSeed; // ← シミュレーション用シード保持
+  aiMode?: 'heuristic' | 'random'; // ← デバッグボット列挙向け AI モード
+  _metrics?: {
+    actionTagHistogram: Record<ActionTag, number>;
+    perRoundVP: number[][];
+    perRoundBuildCounts: number[][];
+    perRoundGears: number[][];
+    perRoundFood: number[][];
+    perRoundFreeLeaders?: number[][];
+    perRoundAvailableCost?: number[][];
+    _prevBuiltCounts: number[]; // 内部計算用
+  };
 }
 
 export type MoveCtx = {

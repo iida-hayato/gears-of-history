@@ -1,6 +1,10 @@
 // 最小限のサンプル
 import type { PolicyCard, TechCard, WonderCard } from './types';
 
+// 再現性確保のためシミュレーション側から差し替え可能な RNG
+export let globalSimRng: () => number = Math.random;
+export const setCardsRng = (r: () => number) => { globalSimRng = r; };
+
 export const samplePolicies = (nPlayers: number): PolicyCard[] => {
   // プレイヤー人数+5枚
   const xs: PolicyCard[] = [
@@ -18,7 +22,12 @@ export const samplePolicies = (nPlayers: number): PolicyCard[] => {
   while (xs.length < nPlayers + 5) {
     xs.push({ id: `P-NOOP-${xs.length}`, name: '政策なし', kind: 'Policy', cost: 0, vp: 0, effects: [] });
   }
-  return xs.sort((a, b) => 0.5 - Math.random());
+  // シンプルシャッフル（Fisher-Yates）
+  for (let i = xs.length - 1; i > 0; i--) {
+    const j = Math.floor(globalSimRng() * (i + 1));
+    [xs[i], xs[j]] = [xs[j], xs[i]];
+  }
+  return xs;
 };
 
 export const initialTechDeck = (): TechCard[] => [
@@ -110,8 +119,8 @@ function copies(t: TechCard, n: number): TechCard[] {
 }
 
 export const baseTechDeck = (): TechCard[] => [
-    // 5枚ずつ追加
-    ...landTechDeck().flatMap(t => copies(t, 5)).sort(() => 0.5 - Math.random()),
+    // 5枚ずつ追加 (Land のみシャッフル)
+    ...(() => { const arr = landTechDeck().flatMap(t => copies(t, 5)); for (let i = arr.length -1; i>0; i--) { const j = Math.floor(globalSimRng()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]];} return arr; })(),
     ...foodProductiveTechDeck(),
     ...productiveTechDeck(),
     ...infrastructureTechDeck(),

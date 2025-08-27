@@ -1,0 +1,33 @@
+{
+  "games": 500,
+  "skipped": 0,
+  "players": 4,
+  "seedBase": 1234,
+  "avgVP": [
+    12.22,
+    12.22,
+    12.304,
+    11.98
+  ],
+  "vpVar": [
+    60.55159999999998,
+    52.55959999999999,
+    53.475584,
+    50.899599999999964
+  ],
+  "winRate": [
+    0.26,
+    0.272,
+    0.266,
+    0.244
+  ],
+  "firstPlayerWinRate": 0.26,
+  "actionTagHistogram": {
+    "policy": 20000,
+    "invention": 25877,
+    "build": 41327,
+    "cleanup": 20000,
+    "internal": 0
+  },
+  "generatedAt": "2025-08-25T16:41:26.393Z"
+}

@@ -1,30 +1,40 @@
-import { Client } from 'boardgame.io/client';
+import { Client } from 'boardgame.io';
 import { GearsOfHistory } from '../game/game';
+import type { BuildType } from '../game/types';
 
 async function main() {
   const cli = Client({ game: GearsOfHistory, numPlayers: 3 });
   cli.start();
 
-  // ラウンド1: 各プレイヤーが政策+1 → 確定
+  // 政策フェーズ: 各プレイヤーが1投資
   for (let i = 0; i < 3; i++) {
     cli.updatePlayerID(String(i));
+    // investAndMove が内部で events.endTurn() を呼ぶため endPolicyTurn は不要
     cli.moves.investAndMove?.(1);
-    cli.moves.endPolicyTurn?.();
   }
 
-  // 発明: P0 が2枚、P1が1枚を市場へ
-  cli.updatePlayerID('0'); cli.moves.inventToMarket?.(2); cli.moves.endInventionTurn?.();
-  cli.updatePlayerID('1'); cli.moves.inventToMarket?.(1); cli.moves.endInventionTurn?.();
-  cli.updatePlayerID('2'); cli.moves.inventToMarket?.(0); cli.moves.endInventionTurn?.();
+  // 発明フェーズ: 各プレイヤーが残回数だけ Land を公開
+  const types: BuildType[] = ['Land','FoodFacility','ProdFacility','Infrastructure','Government'];
+  for (let i = 0; i < 3; i++) {
+    const pid = String(i);
+    cli.updatePlayerID(pid);
+    while (true) {
+      const state: any = cli.getState();
+      const remain = state?.G?._inventRemaining?.[pid] ?? 0;
+      if (remain <= 0) break;
+      const t = types[0];
+      cli.moves.inventType?.(t);
+    }
+  }
 
-  // 建築: P0が最安を1枚
-  const s0 = cli.getState();
+  // 建築フェーズ: P0 が市場最安を1枚試行
+  cli.updatePlayerID('0');
+  let s0: any = cli.getState();
   const firstCard = s0.G.market.techMarket[0]?.id;
   if (firstCard) {
-    cli.updatePlayerID('0');
     cli.moves.buildFromMarket?.(firstCard);
-    cli.moves.endBuildTurn?.();
   }
+  cli.moves.endBuildTurn?.();
   cli.updatePlayerID('1'); cli.moves.endBuildTurn?.();
   cli.updatePlayerID('2'); cli.moves.endBuildTurn?.();
 
@@ -34,7 +44,7 @@ async function main() {
     cli.moves.finalizeCleanup?.();
   }
 
-  const end = cli.getState();
+  const end: any = cli.getState();
   console.log('Round:', end.G.round);
   console.log('TechMarket size:', end.G.market.techMarket.length);
   console.log('P0 built:', end.G.players['0'].built);

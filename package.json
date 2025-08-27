@@ -6,14 +6,19 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "sim": "tsx src/sim/sim.ts"
+    "sim": "tsx src/sim/sim.ts",
+    "sim:batch": "tsx src/sim/simBatch.ts",
+    "sim:agg": "tsx tools/aggregate.ts",
+    "sim:diff": "tsx tools/compare-baseline.ts"
   },
   "dependencies": {
     "boardgame.io": "^0.50.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "recharts": "^2.12.3"
   },
   "devDependencies": {
+    "@types/node": "^22.5.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.7.0",

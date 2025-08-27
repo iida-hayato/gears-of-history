@@ -134,6 +134,7 @@ export interface GState {
   _buildRemaining: Record<PlayerID, number>; // 建築フェイズの残回数
   _buildBudget: Record<PlayerID, number>; // ← このラウンドの残り“利用可能コスト”
   seed?: SimulationSeed; // ← シミュレーション用シード保持
+  aiMode?: 'heuristic' | 'random'; // ← デバッグボット列挙向け AI モード
   _metrics?: {
     actionTagHistogram: Record<ActionTag, number>;
     perRoundVP: number[][];

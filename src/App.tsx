@@ -11,6 +11,7 @@ const enableDebug =
     (import.meta as any).env?.MODE !== 'production';
 const playerCount = 
     parseInt(url.searchParams.get('player') ?? "4");
+const aiMode = url.searchParams.get('ai') === 'heuristic' ? 'heuristic' : 'random';
 
 // Debug 有効時は ?debug=1 付与 (production 以外は常時有効)
 const BGClient = Client({
@@ -18,6 +19,8 @@ const BGClient = Client({
   board: Board,
   numPlayers: playerCount,
   debug: enableDebug ? { impl: Debug } : false,
+  // enumerate のヒューリスティック/ランダム切替用
+  setupData: { aiMode }
 })
 
 export default function App() {

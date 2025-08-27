@@ -386,14 +386,16 @@ export const GearsOfHistory: Game<GState> = {
       switch (phase) {
         case 'policy': {
           const free = freeLeadersAvailable(p);
+          const floor = 1; // 最低1マスは進める
+          const max = free - 1; // 1コマは残す
           if (aiMode === 'heuristic') {
             if (free > 0) {
-              const invest = Math.min(free, Math.max(1, Math.floor(free * 0.6)));
+              const invest = Math.min(floor, Math.min(free, Math.max(1, Math.max(max, Math.floor(free * 0.6)))));
               moves.push({ move: 'investAndMove', args: [invest] });
             }
             moves.push({ move: 'endPolicyTurn', args: [] });
           } else { // random: 全列挙
-            for (let s = 1; s <= free; s++) moves.push({ move: 'investAndMove', args: [s] });
+            for (let s = floor; s <= max; s++) moves.push({ move: 'investAndMove', args: [s] });
             moves.push({ move: 'endPolicyTurn', args: [] });
           }
           break;

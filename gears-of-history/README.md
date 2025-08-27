@@ -1,69 +1,24 @@
-# React + TypeScript + Vite
+# Gears of History (Prototype)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ブラウザで動作する *boardgame.io* ベースの文明発展ボードゲーム試作。React + TypeScript + Vite。
 
-Currently, two official plugins are available:
+## GitHub Pages
+デプロイ先（例）: https://iida-hayato.github.io/gears-of-history/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## URL パラメータ一覧
+| パラメータ | 値                      | 例 | 説明 |
+|------------|------------------------|----|------|
+| `debug`    | bool                   | `?debug=1` | boardgame.io Debug パネル表示（生ログ/手軽な Bot 実行） |
+| `player`   | 数値                     | `?player=4` | プレイヤー人数 (デフォルト 4) |
+| `ai`       | `random` / `heuristic` | `?ai=heuristic` | Debug Bot / enumerate 用 AI 挙動切替。`heuristic` は簡易ヒューリスティックで候補を絞る。省略時 `random` |
+| `dashboard`| `1`                    | `?dashboard=1` | メトリクスダッシュボード表示モード（通常ゲームUIではない） |
 
-## Expanding the ESLint configuration
+複数指定例: `https://.../index.html?debug=1&player=4&ai=heuristic&`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 開発 / 起動
+```bash
+npm install
+npm run dev
+# http://localhost:5173/?debug=1&ai=heuristic などでアクセス
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```

@@ -231,11 +231,18 @@ export const GearsOfHistory: Game<GState> = {
           const p = G.players[pid];
           const kind = G.cardById[cardID]?.kind;
           if (kind === 'Wonder') return;
+          let removed = false;
           let i = p.built.indexOf(cardID);
-          if (i >= 0) { p.built.splice(i, 1); G._buildRemaining[pid]--; return; }
-          i = p.builtFaceDown.indexOf(cardID);
-          if (i >= 0) { p.builtFaceDown.splice(i, 1); G._buildRemaining[pid]--; return; }
-          return;
+          if (i >= 0) { p.built.splice(i, 1); removed = true; }
+          else {
+            i = p.builtFaceDown.indexOf(cardID);
+            if (i >= 0) { p.builtFaceDown.splice(i, 1); removed = true; }
+          }
+          if (!removed) return;
+          G._buildRemaining[pid]--;
+          // リソース・労働再計算
+          recomputePersistentProduction(G, p);
+          recomputeLaborAndEnforceFreeLeaders(p, G.maxBuildSlots);
         },
         endBuildTurn: ({ G, playerID, events }) => {
           G._metrics && (G._metrics.actionTagHistogram.build++);
@@ -436,10 +443,15 @@ export const GearsOfHistory: Game<GState> = {
                   .sort((a,b) => b.s - a.s || a.c.cost - b.c.cost)
                   .slice(0, 3);
                 for (const sc of scored) moves.push({ move: 'buildFromMarket', args: [sc.c.id] });
-                // 解体は抑制（不要なノイズ）
+                // 解体は抑制（閾値到達時のみ）
               } else {
                 for (const c of G.market.techMarket) if (c.cost <= budget) moves.push({ move: 'buildFromMarket', args: [c.id] });
                 for (const w of G.market.wonderMarket) if (w.cost <= budget && !hasWonderInEra(G, pid, (w as any).era)) moves.push({ move: 'buildWonderFromMarket', args: [w.id] });
+              }
+              // 解体列挙条件（総スロットが上限-2 以上）
+              const totalSlots = p.built.length + p.builtFaceDown.length + p.pendingBuilt.length;
+              const allowDemolish = totalSlots >= G.maxBuildSlots - 2;
+              if (allowDemolish) {
                 for (const cid of [...p.built, ...p.builtFaceDown]) {
                   const kind = G.cardById[cid]?.kind; if (kind !== 'Wonder') moves.push({ move: 'demolish', args: [cid] });
                 }

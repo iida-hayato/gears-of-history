@@ -338,6 +338,9 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                         裏にする
                                     </button>
                                 )}
+                                {ctx.phase === 'build' && myID === ctx.currentPlayer && G.cardById?.[id]?.kind !== 'Wonder' && (me.built.length + me.builtFaceDown.length + me.pendingBuilt.length) >= (G.maxBuildSlots - 2) && (
+                                  <button onClick={() => (moves as any).demolish(id)} style={{ marginLeft: 8 }}>解体</button>
+                                )}
                             </li>
                         ))}
                         {me.built.length === 0 && <li style={{ opacity:.6 }}>（なし）</li>}
@@ -353,6 +356,9 @@ export default function Board({G, ctx, moves, playerID}: BoardProps<GState>) {
                                     <button onClick={() => (moves as any).toggleFace(id)} style={{ marginLeft: 8 }}>
                                         表にする
                                     </button>
+                                )}
+                                {ctx.phase === 'build' && myID === ctx.currentPlayer && G.cardById?.[id]?.kind !== 'Wonder' && (me.built.length + me.builtFaceDown.length + me.pendingBuilt.length) >= (G.maxBuildSlots - 2) && (
+                                  <button onClick={() => (moves as any).demolish(id)} style={{ marginLeft: 8 }}>解体</button>
                                 )}
                             </li>
                         ))}
@@ -377,4 +383,3 @@ const fmtEffect = (ef:any) => {
     if (ef.tag === 'laborReduceDelta') return `労働削減${n}`;
     return JSON.stringify(ef);
 };
-
